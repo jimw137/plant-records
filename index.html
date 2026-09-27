@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light" style="color-scheme: light;">
+<head>
+<meta charset="UTF-8">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#3F5A44">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plant Records</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&amp;family=Public+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F6F1E4;
+    --panel: #FFFDF6;
+    --left-panel: #EFE9D6;
+    --ink: #2B2A22;
+    --ink-soft: #5C5A4C;
+    --green: #3F5A44;
+    --green-soft: #6B8570;
+    --rust: #A6532E;
+    --line: #C9C0A6;
+    --line-strong: #B0A688;
+  }
+  :root:not([data-theme="light"]) {
+    @media (prefers-color-scheme: dark) {
+      --bg: #1D1F19; --panel: #23261F; --left-panel: #262920;
+      --ink: #ECE7D8; --ink-soft: #B7B29E; --green: #8FB098; --green-soft: #6B8570;
+      --rust: #D98459; --line: #3A3D33; --line-strong: #474A3E;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1D1F19; --panel: #23261F; --left-panel: #262920;
+    --ink: #ECE7D8; --ink-soft: #B7B29E; --green: #8FB098; --green-soft: #6B8570;
+    --rust: #D98459; --line: #3A3D33; --line-strong: #474A3E;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Public Sans', system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: auto;
+  }
+
+  /* TOOLBAR */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 20px;
+    background: var(--left-panel);
+    border-bottom: 1px solid var(--line-strong);
+    min-width: 1000px;
+    flex-wrap: wrap;
+  }
+  .tabs {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    flex: 1;
+    min-width: 200px;
+  }
+  .tab {
+    font-size: 13px;
+    padding: 6px 12px;
+    border-radius: 3px;
+    border: 1px solid var(--line-strong);
+    background: var(--panel);
+    color: var(--ink-soft);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .tab.active {
+    border-color: var(--green);
+    color: var(--green);
+    font-weight: 600;
+    background: var(--panel);
+  }
+  .btn {
+    font-family: 'Public Sans', sans-serif;
+    font-size: 13px;
+    padding: 7px 14px;
+    border-radius: 3px;
+    border: 1px solid var(--line-strong);
+    background: var(--panel);
+    color: var(--ink-soft);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .btn:hover { border-color: var(--green); color: var(--green); }
+  .btn.danger:hover { border-color: var(--rust); color: var(--rust); }
+  .btn.primary { border-color: var(--green); color: var(--green); font-weight: 600; }
+  .status {
+    font-size: 12px;
+    color: var(--ink-soft);
+    min-width: 130px;
+    text-align: right;
+  }
+
+  header {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 24px; padding: 22px 32px; border-bottom: 2px solid var(--rust);
+    flex-wrap: wrap; min-width: 1000px;
+  }
+  .title-block h1 {
+    font-family: 'Fraunces', serif; font-style: italic; font-weight: 500;
+    font-size: clamp(28px, 3.4vw, 44px); margin: 0; line-height: 1.05; color: var(--ink);
+    outline: none;
+  }
+  .title-block .botanical {
+    font-family: 'Fraunces', serif; font-style: italic; color: var(--green);
+    font-size: 17px; margin-top: 4px; outline: none;
+  }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .chip {
+    font-size: 12.5px; padding: 5px 12px; border: 1px solid var(--line-strong);
+    border-radius: 3px; color: var(--ink-soft); background: var(--panel);
+    white-space: nowrap; outline: none;
+  }
+  .chip.category { border-color: var(--green); color: var(--green); font-weight: 600; }
+  [contenteditable="true"]:focus { outline: 1px dashed var(--rust); outline-offset: 3px; }
+
+  .tag-chip {
+    font-size: 12.5px; padding: 4px 6px 4px 12px; border: 1px solid var(--line-strong);
+    border-radius: 3px; color: var(--ink-soft); background: var(--panel);
+    white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .tag-chip .tag-remove {
+    cursor: pointer; color: var(--ink-soft); border: none; background: none;
+    font-size: 13px; line-height: 1; padding: 2px 4px;
+  }
+  .tag-chip .tag-remove:hover { color: var(--rust); }
+  .tag-add-input {
+    font-family: 'Public Sans', sans-serif; font-size: 12.5px; padding: 5px 10px;
+    border: 1px dashed var(--line-strong); border-radius: 3px; background: var(--panel);
+    color: var(--ink); width: 110px;
+  }
+  .autotag-btn {
+    font-family: 'Public Sans', sans-serif; font-size: 12.5px; padding: 5px 10px;
+    border: 1px solid var(--green-soft); border-radius: 3px; background: var(--panel);
+    color: var(--green); cursor: pointer; white-space: nowrap;
+  }
+  .autotag-btn:hover { background: var(--green); color: var(--panel); }
+  .autotag-btn:disabled { opacity: 0.5; cursor: default; background: var(--panel); color: var(--green); }
+
+  .tag-filter {
+    font-family: 'Public Sans', sans-serif; font-size: 13px; padding: 6px 10px;
+    border: 1px solid var(--line-strong); border-radius: 3px; background: var(--panel); color: var(--ink-soft);
+  }
+
+  .finder { position: relative; flex: 1; min-width: 220px; max-width: 420px; }
+  .finder input {
+    width: 100%; font-family: 'Public Sans', sans-serif; font-size: 13.5px; padding: 7px 10px;
+    border: 1px solid var(--line-strong); border-radius: 3px; background: var(--panel); color: var(--ink);
+  }
+  .finder-list {
+    position: absolute; top: 100%; left: 0; right: 0; z-index: 60; margin-top: 2px;
+    background: var(--panel); border: 1px solid var(--line-strong); border-radius: 4px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.18); max-height: 340px; overflow: auto;
+    font-family: 'Public Sans', sans-serif;
+  }
+  .finder-list.hidden { display: none; }
+  .finder-item { padding: 7px 10px; cursor: pointer; font-size: 13.5px; border-bottom: 1px solid var(--line-strong); }
+  .finder-item:last-child { border-bottom: none; }
+  .finder-item.active, .finder-item:hover { background: var(--bg); }
+  .finder-item.none { cursor: default; color: var(--ink-soft); font-style: italic; }
+  .fi-name { color: var(--ink); }
+  .fi-latin { font-style: italic; color: var(--ink-soft); font-size: 12.5px; margin-left: 6px; }
+  .fi-cat { float: right; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--green); }
+  .cat-select {
+    font-family: 'Public Sans', sans-serif; font-size: 12.5px; padding: 5px 8px; border: 1px solid var(--green);
+    border-radius: 3px; color: var(--green); background: var(--panel); font-weight: 600; cursor: pointer;
+  }
+  .cat-select.unset { border-style: dashed; color: var(--ink-soft); font-weight: 400; }
+  .photo-slot { caret-color: transparent; }
+  .photo-actions {
+    display: flex; border: 1px solid var(--line-strong); border-bottom: none; border-top: 1px dashed var(--line-strong);
+    background: var(--left-panel);
+  }
+  .photo-act {
+    flex: 1; font-family: 'Public Sans', sans-serif; font-size: 12px; padding: 6px 8px; border: none;
+    background: none; color: var(--green); cursor: pointer;
+  }
+  .photo-act + .photo-act { border-left: 1px solid var(--line-strong); }
+  .photo-act:hover { background: var(--green); color: var(--panel); }
+  .bk-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+  .bk-row button { font-family: 'Public Sans', sans-serif; font-size: 13px; padding: 8px 14px; border-radius: 3px; cursor: pointer; align-self: flex-start; }
+  .bk-row button:disabled { opacity: 0.5; cursor: default; }
+  .bk-row span { font-size: 12.5px; color: var(--ink-soft); }
+  .bk-msg { font-size: 13px; color: var(--ink); min-height: 18px; margin-bottom: 12px; }
+  .rs-sec { border-top: 1px solid var(--line-strong); padding-top: 14px; margin-top: 4px; }
+  .rs-sec h4 { margin: 0 0 6px; font-family: 'Fraunces', serif; font-style: italic; font-weight: 500; font-size: 16px; color: var(--ink); }
+  .rs-info { font-size: 13px; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; margin: 8px 0 10px; }
+  .rs-info:empty { display: none; }
+  .modal-cancel.rs-choose { font-family: 'Public Sans', sans-serif; font-size: 13px; padding: 8px 14px; border-radius: 3px; cursor: pointer; font-weight: 600; color: var(--green); border-color: var(--green); }
+  .tm-list { max-height: 50vh; overflow: auto; margin-bottom: 12px; }
+  .tm-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--line-strong); }
+  .tm-name { flex: 1; font-size: 13.5px; }
+  .tm-count { color: var(--ink-soft); font-size: 12px; }
+  .tm-btn {
+    font-family: 'Public Sans', sans-serif; font-size: 12px; padding: 3px 8px; border: 1px solid var(--line-strong);
+    background: var(--panel); color: var(--ink-soft); border-radius: 3px; cursor: pointer;
+  }
+  .tm-btn:hover { border-color: var(--rust); color: var(--rust); }
+  .pc-cat { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--green); margin-bottom: 2px; }
+
+  .tools-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .tool-box {
+    font-size: 12.5px; padding: 5px 12px; border: 1px solid var(--line-strong); border-radius: 3px;
+    color: var(--green); background: var(--panel); text-decoration: none; cursor: pointer; white-space: nowrap;
+  }
+  .tool-box:hover { border-color: var(--green); background: var(--green); color: var(--panel); }
+
+  .bm-dropdown { position: relative; }
+  .bm-panel {
+    position: absolute; top: calc(100% + 4px); left: 0; z-index: 30;
+    background: var(--panel); border: 1px solid var(--line-strong); border-radius: 4px;
+    padding: 8px; min-width: 230px; max-width: 280px;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.18);
+    display: none;
+  }
+  .bm-panel.open { display: block; }
+  .bm-link-row {
+    display: flex; justify-content: space-between; align-items: center; gap: 8px;
+    padding: 5px 2px; font-size: 12.5px; border-bottom: 1px solid var(--line);
+  }
+  .bm-link-row:last-of-type { border-bottom: none; }
+  .bm-link-row a {
+    color: var(--green); text-decoration: none; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; flex: 1;
+  }
+  .bm-link-row a:hover { text-decoration: underline; }
+  .bm-remove { border: none; background: none; color: var(--ink-soft); cursor: pointer; font-size: 13px; padding: 2px 4px; flex-shrink: 0; }
+  .bm-remove:hover { color: var(--rust); }
+  .bm-empty { font-size: 12px; color: var(--ink-soft); font-style: italic; padding: 4px 2px; }
+  .bm-add-row { display: flex; gap: 4px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line-strong); }
+  .bm-add-label, .bm-add-url {
+    font-family: 'Public Sans', sans-serif; font-size: 12px; padding: 4px 6px;
+    border: 1px solid var(--line-strong); border-radius: 3px; background: var(--bg); color: var(--ink); min-width: 0;
+  }
+  .bm-add-label { width: 70px; }
+  .bm-add-url { flex: 1; }
+  .bm-add-btn {
+    font-family: 'Public Sans', sans-serif; font-size: 12px; padding: 4px 8px;
+    border: 1px solid var(--green-soft); border-radius: 3px; background: var(--panel); color: var(--green); cursor: pointer; white-space: nowrap;
+  }
+  .bm-add-btn:hover { background: var(--green); color: var(--panel); }
+
+  .compact-toggle {
+    font-family: 'Public Sans', sans-serif; font-size: 12.5px; padding: 6px 12px;
+    border: 1px solid var(--line-strong); border-radius: 3px; background: var(--panel);
+    color: var(--ink-soft); cursor: pointer;
+  }
+  .compact-toggle:hover { border-color: var(--rust); color: var(--rust); }
+
+  .btn.on { background: var(--green); color: var(--panel); border-color: var(--green); }
+  .browse-overlay {
+    position: fixed; inset: 0; z-index: 90; background: var(--bg); color: var(--ink);
+    display: flex; flex-direction: column; font-family: 'Public Sans', sans-serif;
+  }
+  .browse-overlay.hidden { display: none; }
+  .browse-bar {
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 14px;
+    border-bottom: 1px solid var(--line-strong); background: var(--panel);
+  }
+  .browse-bar h2 { margin: 0 8px 0 0; font-family: 'Fraunces', serif; font-style: italic; font-weight: 500; font-size: 20px; }
+  .browse-bar input[type=search], .browse-bar select {
+    padding: 7px 10px; border: 1px solid var(--line-strong); border-radius: 4px;
+    background: var(--bg); color: var(--ink); font-size: 13.5px; font-family: inherit;
+  }
+  .browse-bar input[type=search] { flex: 1; min-width: 150px; max-width: 300px; }
+  .b-toggle { display: inline-flex; gap: 4px; }
+  .browse-body { flex: 1; overflow: auto; padding: 14px; }
+  .browse-count { font-size: 12.5px; color: var(--ink-soft); margin-bottom: 10px; }
+  .b-empty { color: var(--ink-soft); font-family: 'Fraunces', serif; font-style: italic; padding: 30px 0; }
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+  .plant-card {
+    border: 1px solid var(--line-strong); background: var(--panel); border-radius: 6px; overflow: hidden;
+    cursor: pointer; text-align: left; padding: 0; display: flex; flex-direction: column;
+    font-family: inherit; color: inherit;
+  }
+  .plant-card:hover { border-color: var(--rust); }
+  .plant-card { position: relative; }
+  .tl-dot {
+    position: absolute; top: 8px; right: 8px; width: 15px; height: 15px; border-radius: 50%;
+    border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,0.35); z-index: 2;
+  }
+  .tl-dot.green { background: #3FA34D; }
+  .tl-dot.orange { background: #F09A2B; }
+  .tl-dot.red { background: #D8412F; }
+  .tl-legend { font-size: 12.5px; color: var(--ink-soft); margin-bottom: 10px; display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: center; }
+  .tl-legend .tl-dot { position: static; display: inline-block; width: 11px; height: 11px; border-width: 1px; margin-right: 5px; vertical-align: -1px; }
+  .plant-card .thumb {
+    aspect-ratio: 4 / 3; background: var(--bg); display: flex; align-items: center; justify-content: center;
+    color: var(--line-strong); font-size: 26px; font-family: 'Fraunces', serif;
+  }
+  .plant-card .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .plant-card .info { padding: 8px 10px 10px; }
+  .pc-name { font-family: 'Fraunces', serif; font-size: 16px; line-height: 1.2; }
+  .pc-latin { font-style: italic; font-size: 12.5px; color: var(--ink-soft); margin-top: 2px; }
+  .pc-when { font-size: 12px; color: var(--ink-soft); margin-top: 5px; }
+  .pc-tags { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 6px; }
+  .pc-tags span { font-size: 10.5px; padding: 1px 6px; border: 1px solid var(--line-strong); border-radius: 10px; color: var(--ink-soft); }
+  .lightbox {
+    position: fixed; inset: 0; z-index: 120; background: rgba(15,15,12,0.93);
+    display: flex; align-items: center; justify-content: center; gap: 10px; padding: 16px;
+  }
+  .lightbox.hidden { display: none; }
+  .lb-stage { display: flex; flex-direction: column; align-items: center; max-width: calc(100vw - 150px); max-height: 100%; }
+  .lb-stage img { max-width: 100%; max-height: 70vh; object-fit: contain; border-radius: 4px; background: #111; }
+  .lb-cap { color: #eee; text-align: center; margin-top: 12px; font-family: 'Public Sans', sans-serif; font-size: 14px; }
+  .lb-title { font-family: 'Fraunces', serif; font-size: 20px; }
+  .lb-title em { color: #cfcfc4; font-size: 15px; }
+  .lb-desc { color: #cfcfc4; margin-top: 4px; }
+  .lb-count { color: #9a9a8f; font-size: 12px; margin: 6px 0 10px; }
+  .lb-nav, .lb-close {
+    background: rgba(255,255,255,0.12); color: #fff; border: none; border-radius: 50%;
+    width: 44px; height: 44px; font-size: 26px; cursor: pointer; flex: none; line-height: 1;
+  }
+  .lb-close { position: absolute; top: 14px; right: 14px; }
+  @media (max-width: 600px) {
+    .lb-stage { max-width: calc(100vw - 100px); }
+    .lb-nav { width: 34px; height: 34px; font-size: 20px; }
+  }
+
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.35);
+    display: flex; align-items: center; justify-content: center; z-index: 100;
+  }
+  .modal-overlay.hidden { display: none; }
+  .modal-overlay { overflow-y: auto; padding: 16px 0; align-items: flex-start; }
+  .modal-box { margin: auto; max-height: calc(100vh - 32px); overflow-y: auto; }
+  .modal-box {
+    background: var(--panel); border: 1px solid var(--line-strong); border-radius: 6px;
+    padding: 20px; width: 320px; box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+    font-family: 'Public Sans', sans-serif;
+  }
+  .modal-box h3 {
+    margin: 0 0 12px; font-family: 'Fraunces', serif; font-style: italic; font-weight: 500;
+    font-size: 18px; color: var(--ink);
+  }
+  .modal-box p { margin: 0 0 14px; font-size: 13.5px; color: var(--ink-soft); }
+  .modal-box input {
+    width: 100%; padding: 8px 10px; border: 1px solid var(--line-strong); border-radius: 4px;
+    font-size: 14px; margin-bottom: 14px; background: var(--bg); color: var(--ink);
+  }
+  .modal-box textarea {
+    width: 100%; height: 200px; padding: 8px 10px; border: 1px solid var(--line-strong); border-radius: 4px;
+    font-size: 13px; margin-bottom: 10px; background: var(--bg); color: var(--ink); font-family: inherit; resize: vertical;
+  }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+  .modal-actions button {
+    font-family: 'Public Sans', sans-serif; font-size: 13px; padding: 7px 14px; border-radius: 3px; cursor: pointer;
+  }
+  .modal-cancel { border: 1px solid var(--line-strong); background: var(--panel); color: var(--ink-soft); }
+  .modal-confirm { border: 1px solid var(--green); background: var(--green); color: var(--panel); font-weight: 600; }
+  .modal-confirm.danger { border-color: var(--rust); background: var(--rust); }
+
+  .identify-btn {
+    margin-top: 6px; width: 100%; font-family: 'Public Sans', sans-serif; font-size: 12px;
+    padding: 6px 10px; border: 1px solid var(--green-soft); border-radius: 3px;
+    background: var(--panel); color: var(--green); cursor: pointer;
+  }
+  .identify-btn:hover { background: var(--green); color: var(--panel); }
+  .identify-btn:disabled { opacity: 0.5; cursor: default; }
+  .id-candidate-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+  .id-candidate-btn {
+    text-align: left; font-family: 'Public Sans', sans-serif; font-size: 13.5px;
+    padding: 9px 12px; border: 1px solid var(--line-strong); border-radius: 4px;
+    background: var(--bg); color: var(--ink); cursor: pointer;
+  }
+  .id-candidate-btn:hover { border-color: var(--green); background: var(--panel); }
+  .id-candidate-btn em { color: var(--ink-soft); font-style: italic; }
+
+  .flag { flex: 1; display: grid; grid-template-columns: 1fr 1fr 1fr; min-width: 1000px; min-height: 0; }
+
+  .col-left { background: var(--left-panel); border-right: 1px solid var(--line-strong); overflow-y: auto; padding: 8px 28px 28px; }
+  .field { padding: 14px 0; border-bottom: 1px solid var(--line); }
+  .field:last-child { border-bottom: none; }
+  .field .label { font-size: 12px; font-weight: 600; color: var(--green); letter-spacing: 0.02em; margin-bottom: 4px; }
+  .field .value { font-size: 14.5px; line-height: 1.5; color: var(--ink); outline: none; }
+  .field .value.missing { color: var(--ink-soft); font-style: italic; }
+  body.compact .field .value { font-size: 12.5px; line-height: 1.4; }
+  body.compact .field { padding: 10px 0; }
+
+  .col-mid { display: flex; flex-direction: column; border-right: 1px solid var(--line-strong); min-height: 0; }
+  .notes {
+    height: 322px; flex: 0 0 auto; padding: 22px 26px 10px;
+    background-image: repeating-linear-gradient(to bottom, transparent, transparent 27px, var(--line) 28px);
+    background-position: 0 54px; overflow-y: auto; white-space: pre-wrap; outline: none;
+  }
+  .panel-title {
+    font-family: 'Fraunces', serif; font-size: 15px; font-style: italic; color: var(--ink-soft);
+    margin: 0 0 18px; background: var(--bg); display: inline-block; padding-right: 8px;
+  }
+  .sources {
+    flex: 1; min-height: 0; border-bottom: 1px solid var(--line-strong);
+    padding: 16px 26px 22px; background: var(--panel); overflow-y: auto;
+  }
+  .sources .links-box { font-size: 13px; line-height: 1.6; color: var(--ink-soft); white-space: pre-wrap; outline: none; min-height: 40px; }
+  .sources a { color: var(--green); text-decoration: none; border-bottom: 1px solid var(--line-strong); }
+  .sources a:hover { border-bottom-color: var(--green); }
+  .lk-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+  .lk-row { display: flex; align-items: center; gap: 6px; font-size: 13.5px; line-height: 1.4; }
+  .lk-row a { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lk-row .lk-text { flex: 1; min-width: 0; color: var(--ink-soft); font-size: 13px; }
+  .lk-btn { border: 1px solid var(--line-strong); background: var(--panel); color: var(--ink-soft); border-radius: 3px;
+    font-size: 12px; padding: 2px 7px; cursor: pointer; flex: none; font-family: 'Public Sans', sans-serif; }
+  .lk-btn:hover { border-color: var(--rust); color: var(--rust); }
+  .lk-empty { font-size: 13px; color: var(--ink-soft); font-style: italic; }
+  .lk-add { font-family: 'Public Sans', sans-serif; font-size: 13px; padding: 6px 12px; border: 1px solid var(--green);
+    border-radius: 3px; background: var(--panel); color: var(--green); cursor: pointer; font-weight: 600; }
+  .lk-add:hover { background: var(--green); color: var(--panel); }
+  .modal-box label { display: block; font-size: 12.5px; font-weight: 600; color: var(--green); margin-bottom: 4px; }
+  .lk-urlrow { display: flex; gap: 6px; }
+  .lk-urlrow input { flex: 1; }
+  .lk-urlrow button { margin-bottom: 14px; }
+
+  .col-right { display: flex; flex-direction: column; min-height: 0; }
+  .photo-block { flex: 1; min-height: 0; display: flex; flex-direction: column; margin: 18px 20px; }
+  .photo-block:first-child { margin-bottom: 9px; }
+  .photo-block:last-child { margin-top: 9px; }
+  .photo-slot {
+    flex: 1; min-height: 0; border: 1.5px dashed var(--line-strong); border-bottom: none; border-radius: 4px 4px 0 0;
+    display: flex; align-items: center; justify-content: center; color: var(--ink-soft); background: var(--panel);
+    cursor: pointer; overflow: hidden; position: relative;
+  }
+  .photo-slot:focus { outline: 2px dashed var(--rust); outline-offset: -3px; }
+  .photo-slot.dragover { outline: 2px solid var(--rust); outline-offset: -3px; }
+  .photo-slot img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+  .photo-slot .plus { font-size: 22px; color: var(--line-strong); font-family: 'Fraunces', serif; }
+  .photo-descriptor {
+    border: 1px solid var(--line-strong); border-radius: 0 0 4px 4px; background: var(--left-panel);
+    padding: 8px 12px; font-size: 12.5px; letter-spacing: 0.01em; color: var(--ink-soft); outline: none;
+  }
+
+  .empty-state {
+    flex: 1; display: flex; align-items: center; justify-content: center; flex-direction: column;
+    gap: 14px; color: var(--ink-soft); font-family: 'Fraunces', serif; font-style: italic; font-size: 18px;
+  }
+  /* TOP-BAR COLOUR (season / plant type) */
+  body.tinted .toolbar, body.tinted header { background: var(--top-bg); transition: background 0.25s; }
+  body.tinted header .title-block h1 { color: #2B2A22; }
+  body.tinted header .title-block .botanical { color: #2F4A35; }
+  body.tinted .toolbar .status { color: #3B3A2E; }
+  .tag-chip.coloured { color: #2B2A22; border-color: rgba(0,0,0,0.25); }
+  .tag-chip.coloured .tag-remove { color: #5A5747; }
+  .check-btn {
+    font-family: 'Public Sans', sans-serif; font-size: 12.5px; padding: 5px 10px; border-radius: 3px; cursor: pointer;
+    border: 1px dashed var(--line-strong); background: var(--panel); color: var(--ink-soft); white-space: nowrap;
+  }
+  .check-btn.done { border: 1px solid #3FA34D; background: #3FA34D; color: #fff; font-weight: 600; }
+  .pc-strip { height: 7px; flex: none; }
+  .pc-check { position: absolute; top: 8px; left: 8px; z-index: 2; font-size: 10.5px; font-weight: 700; padding: 2px 7px;
+    border-radius: 10px; background: #3FA34D; color: #fff; box-shadow: 0 0 0 1px rgba(255,255,255,0.8); }
+  .pc-strip + .pc-check, .pc-strip ~ .tl-dot { top: 15px; }
+  .gs-ring { position: absolute; top: 5px; right: 30px; width: 21px; height: 21px; border-radius: 50%; z-index: 2;
+    background: rgba(255,255,255,0.85); box-shadow: 0 0 0 1px rgba(0,0,0,0.35); box-sizing: border-box; }
+  .gs-ring.gone { border: 4px solid #7A7A72; }
+  .gs-ring.wish { border: 4px dashed #3E7CB1; }
+  .pc-strip ~ .gs-ring { top: 12px; }
+  .plant-card.is-gone { opacity: 0.55; }
+  .plant-card.is-gone:hover { opacity: 1; }
+  .tl-legend .gs-ring { position: static; display: inline-block; width: 13px; height: 13px; border-width: 3px; margin-right: 5px; vertical-align: -2px; }
+  .gs-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 10px; font-size: 12.5px; color: var(--ink-soft); }
+  .grow-select {
+    font-family: 'Public Sans', sans-serif; font-size: 12.5px; padding: 5px 8px; border: 1px solid var(--line-strong);
+    border-radius: 3px; color: var(--ink-soft); background: var(--panel); cursor: pointer;
+  }
+  .grow-select.gone { border-color: #7A7A72; color: #5C5C55; font-weight: 600; }
+  .grow-select.wish { border-color: #3E7CB1; color: #3E7CB1; font-weight: 600; }
+
+  /* PHONE LAYOUT */
+  @media (max-width: 760px) {
+    html, body { height: auto; }
+    body { display: block; overflow-x: hidden; }
+    .toolbar, header, .flag { min-width: 0; }
+    .toolbar { padding: 8px 12px; gap: 6px; }
+    .finder { flex: 1 1 100%; max-width: none; min-width: 0; }
+    .toolbar .btn { padding: 7px 10px; font-size: 12.5px; }
+    .status { flex: 1 1 100%; text-align: left; min-width: 0; }
+    header { padding: 14px 16px; gap: 12px; }
+    .tools-row, .chips { gap: 6px; }
+    .flag { display: block; }
+    .col-left, .col-mid, .col-right { border-right: none; overflow: visible; }
+    .col-left { padding: 4px 16px 16px; }
+    .col-mid { border-top: 1px solid var(--line-strong); }
+    .sources { padding: 14px 16px; }
+    .notes { height: 240px; padding: 16px; }
+    .photo-block { margin: 12px 16px; }
+    .photo-block:first-child, .photo-block:last-child { margin: 12px 16px; }
+    .photo-slot { flex: none; height: 240px; }
+    .bm-panel { max-width: calc(100vw - 32px); }
+    .modal-box { width: calc(100vw - 32px); max-width: 420px; }
+    .browse-bar { padding: 8px 12px; }
+    .browse-bar input[type=search] { flex: 1 1 100%; max-width: none; }
+    .card-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+    .browse-body { padding: 10px; }
+  }
+
+  /* BUILT-IN MANUAL */
+  .help-overlay { position: fixed; inset: 0; z-index: 95; background: var(--bg); color: var(--ink);
+    display: flex; flex-direction: column; font-family: 'Public Sans', sans-serif; font-size: 16px; line-height: 1.55; }
+  .help-overlay.hidden { display: none; }
+  .help-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px;
+    background: var(--left-panel); border-bottom: 2px solid var(--rust); }
+  .help-bar h2 { margin: 0; font-family: 'Fraunces', serif; font-style: italic; font-weight: 500; font-size: 24px; }
+  .help-bar .btn { font-size: 16px; }
+  .help-wrap { flex: 1; min-height: 0; display: flex; }
+  .help-toc { flex: 0 0 280px; overflow-y: auto; padding: 18px 16px; background: var(--left-panel); border-right: 1px solid var(--line-strong); }
+  .help-toc-h { font-family: 'Fraunces', serif; font-style: italic; color: var(--ink-soft); font-size: 18px; margin-bottom: 8px; }
+  .help-toc a { display: block; padding: 6px 8px; border-radius: 3px; color: var(--green); text-decoration: none; font-size: 16px; }
+  .help-toc a:hover { background: var(--panel); }
+  .help-body { flex: 1; overflow-y: auto; padding: 8px 32px 60px; }
+  .help-body section { max-width: 760px; padding: 18px 0 22px; border-bottom: 1px solid var(--line); scroll-margin-top: 8px; }
+  .help-body h3 { font-family: 'Fraunces', serif; font-style: italic; font-weight: 500; font-size: 26px; color: var(--green); margin: 0 0 10px; }
+  .help-body p { margin: 0 0 12px; }
+  .help-body ul, .help-body ol { margin: 0 0 12px; padding-left: 24px; }
+  .help-body li { margin-bottom: 7px; }
+  .help-body kbd { font-family: inherit; font-size: 14px; padding: 1px 7px; border: 1px solid var(--line-strong); border-bottom-width: 2px; border-radius: 4px; background: var(--panel); }
+  .help-body code { font-size: 15px; background: var(--panel); border: 1px solid var(--line); padding: 1px 5px; border-radius: 3px; }
+  .help-tip { background: var(--panel); border-left: 4px solid var(--green); padding: 10px 14px; border-radius: 0 4px 4px 0; }
+  .help-warn { background: var(--panel); border-left: 4px solid var(--rust); padding: 10px 14px; border-radius: 0 4px 4px 0; }
+  .help-card { background: var(--panel); border: 1px solid var(--line-strong); border-radius: 6px; padding: 14px 18px 4px; margin-bottom: 12px; }
+  .help-card > strong { display: block; font-family: 'Fraunces', serif; font-style: italic; font-weight: 500; font-size: 20px; margin-bottom: 8px; color: var(--rust); }
+  /* look-alike buttons (pictures, not clickable) */
+  .help-body .hx { pointer-events: none; display: inline-block; vertical-align: middle; margin: 1px 0; line-height: 1.3; }
+  .help-body .modal-confirm.hx, .help-body .lk-add.hx { font-size: 13px; padding: 6px 12px; border-radius: 3px; }
+  .help-body .identify-btn.hx { width: auto; margin-top: 0; }
+  .help-body .btn.hx.on { background: var(--green); color: var(--panel); }
+  .hx-status { font-size: 13px; color: var(--ink-soft); background: var(--left-panel); border: 1px solid var(--line); padding: 2px 8px; border-radius: 3px; white-space: nowrap; }
+  .hx-search { display: inline-block; font-size: 14px; color: var(--ink-soft); background: var(--panel); border: 1px solid var(--line-strong); padding: 4px 10px; border-radius: 3px; min-width: 240px; }
+  .hx-input { display: inline-block; font-size: 13px; color: var(--ink-soft); background: var(--panel); border: 1px dashed var(--line-strong); padding: 3px 10px; border-radius: 3px; }
+  .hx-sel { display: inline-block; font-size: 13px; padding: 3px 8px; border: 1px solid var(--line-strong); border-radius: 3px; background: var(--panel); color: var(--ink-soft); white-space: nowrap; margin: 2px 0; }
+  .hx-sel.gone { border-color: #7A7A72; color: #5C5C55; font-weight: 600; }
+  .hx-sel.wish { border-color: #3E7CB1; color: #3E7CB1; font-weight: 600; }
+  .hx-missing { color: var(--ink-soft); }
+  .hx-photo { display: inline-flex; width: 260px; border: 1px solid var(--line-strong); background: var(--left-panel); pointer-events: none; }
+  .help-body .pc-check.hx-static { position: static; display: inline-block; }
+  .help-keys { list-style: none; padding-left: 4px !important; }
+  .help-keys li { display: flex; align-items: center; gap: 10px; }
+  .help-keys .tl-dot, .help-keys .gs-ring { position: static; flex: none; }
+  .help-map { max-width: 560px; border: 1px solid var(--line-strong); border-radius: 6px; overflow: hidden; margin: 4px 0 14px; font-size: 14px; }
+  .help-map b { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: var(--rust); color: #fff; font-size: 12px; margin-right: 6px; }
+  .hm-row { padding: 8px 10px; border-bottom: 1px solid var(--line-strong); }
+  .hm-tool { background: var(--left-panel); }
+  .hm-head { background: var(--panel); border-bottom: 2px solid var(--rust); }
+  .hm-cols { display: grid; grid-template-columns: 1fr 1fr 1fr; }
+  .hm-col { padding: 14px 10px 22px; background: var(--panel); border-right: 1px solid var(--line-strong); }
+  .hm-col:last-child { border-right: none; }
+  .hm-left { background: var(--left-panel); }
+  .hm-col small { color: var(--ink-soft); }
+  .help-faq dt { font-weight: 700; margin-top: 14px; }
+  .help-faq dt::before { content: '? '; color: var(--rust); }
+  .help-faq dd { margin: 4px 0 0 18px; }
+  /* ADD GARDEN PHOTOS */
+  .gp-top { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+  .gp-choose { display: inline-block; font-size: 13px; padding: 8px 14px; border-radius: 3px; cursor: pointer; }
+  .modal-box label.gp-choose { color: var(--panel); margin: 0; font-size: 13px; font-weight: 600; }
+  .gp-hint, .gp-empty { font-size: 13px; color: var(--ink-soft); }
+  .gp-empty { font-style: italic; padding: 18px 0; }
+  .gp-rows { display: flex; flex-direction: column; gap: 10px; max-height: 58vh; overflow-y: auto; margin-bottom: 10px; }
+  .gp-row { display: flex; gap: 14px; align-items: flex-start; padding: 10px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--bg); }
+  .gp-row.gp-done { border-color: var(--green); border-width: 2px; }
+  .gp-thumb { width: 150px; height: 112px; object-fit: cover; border-radius: 4px; flex: none; cursor: zoom-in; background: var(--panel); }
+  .gp-thumb.big { width: 420px; height: auto; max-width: 60vw; cursor: zoom-out; }
+  .gp-main { flex: 1; min-width: 0; }
+  .gp-file { font-size: 12px; color: var(--ink-soft); margin-bottom: 6px; }
+  .gp-bad { font-size: 12.5px; color: var(--rust); margin-bottom: 6px; }
+  .gp-pick { position: relative; }
+  .modal-box .gp-pick input { margin-bottom: 6px; }
+  .gp-chosen { font-size: 13.5px; color: var(--green); font-weight: 600; min-height: 18px; margin-bottom: 4px; }
+  .gp-slots { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13.5px; }
+  .modal-box .gp-slots label { display: inline-flex; align-items: center; gap: 5px; font-weight: 400; color: var(--ink); margin: 0; cursor: pointer; }
+  .modal-box .gp-slots input { width: auto; margin: 0; }
+  .gp-warn { font-size: 12.5px; color: var(--rust); margin-top: 4px; min-height: 0; }
+  .gp-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  #gp-count { font-size: 13px; color: var(--ink-soft); }
+  .modal-actions button:disabled { opacity: 0.5; cursor: default; }
+  @media (max-width: 760px) { .gp-row { flex-direction: column; } .gp-thumb { width: 100%; height: 180px; } }
+  #btn-back { border-color: var(--green); color: var(--green); font-weight: 600; }
+  #btn-help { border-color: var(--rust); color: var(--rust); font-weight: 600; }
+  @media (max-width: 760px) {
+    .help-wrap { display: block; overflow-y: auto; }
+    .help-toc { border-right: none; border-bottom: 1px solid var(--line-strong); }
+    .help-body { overflow: visible; padding: 4px 16px 40px; }
+    .hx-search { min-width: 0; }
+  }
+  .tm-colour {
+    font-family: 'Public Sans', sans-serif; font-size: 12px; padding: 3px 4px; border: 1px solid var(--line-strong);
+    border-radius: 3px; background: var(--panel); color: var(--ink-soft); cursor: pointer; max-width: 108px;
+  }
+  /* standalone: features that needed Claude are hidden */
+  .identify-btn, #autotag-btn { display: none !important; }
+  .sa-banner { background: #FFF4D6; color: #5C4A12; border-bottom: 1px solid #E3CF8F; padding: 8px 20px; font: 14px 'Public Sans', sans-serif; }
+  .sa-banner button { margin-left: 10px; }
+</style>
+</head>
+<body>
+<div class="sa-banner" id="sa-banner" hidden>👋 This is your own copy of Plant Records. To bring in your plants: click <strong>Backup</strong> → <strong>📂 Choose backup file…</strong> → pick your <em>with-photos</em> backup → <strong>Replace everything</strong>.</div>
+
+
+
+
+  <div class="toolbar">
+    <div class="finder">
+      <input type="search" id="finder-input" placeholder="Find a plant — start typing a name or tag…" autocomplete="off">
+      <div class="finder-list hidden" id="finder-list"></div>
+    </div>
+    <button class="btn" id="btn-back" title="Go back to your search or Browse results" hidden="">← Back</button>
+    <button class="btn primary" id="btn-add">+ New plant</button>
+    <button class="btn danger" id="btn-delete">Delete this plant</button>
+    <button class="btn" id="btn-browse">Browse</button>
+    <button class="btn" id="btn-photos" title="Add lots of your own photos at once">📷 Add photos</button>
+    <button class="btn" id="btn-import">Import plants</button>
+    <button class="btn" id="btn-backup">Backup</button>
+    <button class="btn" id="btn-save">Save changes</button>
+    <button class="btn" id="btn-help" title="How to use this app">? Help</button>
+    <span class="status" id="status">Loading…</span>
+  </div>
+
+  <div id="app"><!-- rendered by JS; import + update-existing feature, name-swap fix --></div>
+
+  <div class="browse-overlay hidden" id="browse-overlay"></div>
+
+  <div class="help-overlay hidden" id="help-overlay" role="dialog" aria-label="How to use Plant Records">
+    <div class="help-bar">
+      <h2>How to use Plant Records</h2>
+      <button class="btn" id="help-close">Close ✕</button>
+    </div>
+    <div class="help-wrap">
+      <nav class="help-toc" id="help-toc">
+        <div class="help-toc-h">Contents</div>
+        <a href="#h-start">1. Getting started</a>
+        <a href="#h-find">2. Find a plant</a>
+        <a href="#h-edit">3. Change a plant's details</a>
+        <a href="#h-photos">4. Add photos</a>
+        <a href="#h-browse">5. Browse all your plants</a>
+        <a href="#h-new">6. Add or delete a plant</a>
+        <a href="#h-labels">7. Tags, category, colour and status</a>
+        <a href="#h-links">8. Links, notes and research buttons</a>
+        <a href="#h-import">9. Import and update many plants</a>
+        <a href="#h-tags">10. Tidy up your tags</a>
+        <a href="#h-backup">11. Backups (important!)</a>
+        <a href="#h-trouble">12. Troubleshooting</a>
+      </nav>
+      <div class="help-body" id="help-body">
+
+        <section id="h-start">
+          <h3>1. Getting started</h3>
+          <p>Plant Records is your garden notebook. Each plant has its own page with facts, links, notes and two photos.</p>
+          <div class="help-map" aria-hidden="true">
+            <div class="hm-row hm-tool"><b>A</b> Toolbar: search box and main buttons</div>
+            <div class="hm-row hm-head"><b>B</b> Plant name, Latin name, tags and tools</div>
+            <div class="hm-cols">
+              <div class="hm-col hm-left"><b>C</b> Plant facts<br><small>Description, Watering…</small></div>
+              <div class="hm-col"><b>D</b> Links<br>and notes</div>
+              <div class="hm-col"><b>E</b> Two<br>photos</div>
+            </div>
+          </div>
+          <p><strong>The app saves by itself.</strong> Look at the small message at the right of the toolbar:</p>
+          <ul>
+            <li><span class="hx-status">Unsaved changes…</span> means it's about to save. Wait a second or two.</li>
+            <li><span class="hx-status">All changes saved · 14:32</span> means your work is safe.</li>
+          </ul>
+          <p class="help-tip">Tip: before you close the app, check it says <em>All changes saved</em>.</p>
+        </section>
+
+        <section id="h-find">
+          <h3>2. Find a plant</h3>
+          <ol>
+            <li>Click the search box: <span class="hx-search">Find a plant — start typing…</span></li>
+            <li>Type part of the name, the Latin name or a tag.</li>
+            <li>Click the plant in the list. Or use the ↑ ↓ arrow keys and press <kbd>Enter</kbd>.</li>
+          </ol>
+          <p>To look through all your plants as pictures, use <span class="btn hx">Browse</span>. See section 5.</p>
+          <p>After opening a plant, click <span class="btn hx" style="border-color:var(--green);color:var(--green);font-weight:600">← Back</span> to return to your search list or your Browse results.</p>
+        </section>
+
+        <section id="h-edit">
+          <h3>3. Change a plant's details</h3>
+          <ol>
+            <li>Click any text: the name, the Latin name, a fact, a photo caption or the notes.</li>
+            <li>Type your changes. A dotted line shows where you're typing.</li>
+            <li>That's it. It saves by itself.</li>
+          </ol>
+          <p>Grey slanted text means that fact is missing, for example <em class="hx-missing">Not sure</em>. Click it and type the real fact.</p>
+          <p>If you want to save straight away, click <span class="btn hx">Save changes</span>.</p>
+          <p>Text too big? Click <span class="compact-toggle hx">Smaller text</span>. Click again to switch back.</p>
+        </section>
+
+        <section id="h-photos">
+          <h3>4. Add photos</h3>
+          <p>Each plant has two photo boxes: <em>Whole plant</em> and <em>Close-up</em>. Under each box are two buttons:</p>
+          <p><span class="hx-photo"><span class="photo-act">📋 Paste</span><span class="photo-act">⬆ Upload</span></span></p>
+          <ul>
+            <li><strong>Upload</strong>: pick a photo from your computer or phone.</li>
+            <li><strong>Paste</strong>: first copy a picture (right-click on it → <em>Copy image</em>), then click Paste.</li>
+            <li><strong>Drag</strong>: drag a photo file onto the box.</li>
+          </ul>
+          <p>A new photo replaces the old one in that box. The app shrinks big photos so it stays fast.</p>
+          <p>Click the caption under a photo to change it.</p>
+          <p><strong>Lots of your own photos at once:</strong> click <span class="btn hx">📷 Add photos</span> in the toolbar, then <span class="modal-confirm hx">📂 Choose photos…</span> and pick as many as you like (hold <kbd>Ctrl</kbd> to pick several, or <kbd>Ctrl</kbd>+<kbd>A</kbd> for a whole folder).</p>
+          <ol>
+            <li>Next to each photo, type the plant name and click it in the list. Click a photo to see it bigger.</li>
+            <li>Choose <em>Whole plant</em> or <em>Close-up</em>. Leave it on <em>Skip</em> to ignore that photo.</li>
+            <li>If the plant isn't in the app yet, click <em>➕ New plant called …</em> and it will be created for you.</li>
+            <li>Click <span class="modal-confirm hx">Add photos</span> and wait until it says it's finished.</li>
+          </ol>
+          <p class="help-tip">Photos from an iPhone may be HEIC files, which the browser can't read. Set the phone to save as JPG ("Most Compatible"), or convert them first.</p>
+        </section>
+
+        <section id="h-browse">
+          <h3>5. Browse all your plants</h3>
+          <p>Click <span class="btn hx">Browse</span> to see your plants as cards. Click a card to open that plant.</p>
+          <p><strong>The spots on each card:</strong></p>
+          <ul class="help-keys">
+            <li><span class="tl-dot green"></span> All 8 facts filled in</li>
+            <li><span class="tl-dot orange"></span> Mostly done (5 to 7 facts)</li>
+            <li><span class="tl-dot red"></span> A lot to do (0 to 4 facts)</li>
+            <li><span class="gs-ring gone"></span> Not growing now (the card is faded too)</li>
+            <li><span class="gs-ring wish"></span> Want to grow</li>
+            <li><span class="pc-check hx-static">✓ Checked</span> You've checked the facts are right</li>
+          </ul>
+          <p><strong>Show only some plants:</strong></p>
+          <ul>
+            <li>The <strong>Show:</strong> buttons: <span class="btn hx on">🌱 Growing</span> <span class="btn hx">All</span> and so on.</li>
+            <li>The drop-down lists pick a tag, category, flowering season or Draft/Checked.</li>
+            <li>The search box finds plants by name or tag.</li>
+          </ul>
+          <p>After opening a card, click <span class="btn hx" style="border-color:var(--green);color:var(--green);font-weight:600">← Back</span> to return to the same list, with your filters still set.</p>
+          <p class="help-tip">Tip: to find plants that still need something, use the Category list's <em>No category set</em> option, or look for red and orange spots.</p>
+          <p>Click <span class="btn hx">Photos</span> to see only pictures. Click one to make it big. Use ‹ › or the arrow keys to move through them.</p>
+          <p>Press <kbd>Esc</kbd> or click <span class="btn hx">Close</span> to go back.</p>
+        </section>
+
+        <section id="h-new">
+          <h3>6. Add or delete a plant</h3>
+          <p><strong>Add:</strong> click <span class="btn primary hx">+ New plant</span>. A blank page called <em>Untitled plant</em> opens. Click the name and type the real one.</p>
+          <p><strong>Delete:</strong> open the plant, then click <span class="btn hx">Delete this plant</span> and confirm.</p>
+          <p class="help-warn">⚠ There's no undo button. You can only get a deleted plant back from a backup (section 11). If you might grow it again, set it to <em>Not growing now</em> instead (section 7).</p>
+        </section>
+
+        <section id="h-labels">
+          <h3>7. Tags, category, colour and status</h3>
+          <p>These buttons sit under the plant name.</p>
+          <ul>
+            <li><strong>Category</strong> (Perennials, Shrubs, Trees…): pick from the green drop-down list.</li>
+            <li><strong>Growing status</strong>: <span class="hx-sel">🌱 Growing</span> <span class="hx-sel gone">○ Not growing now</span> <span class="hx-sel wish">☆ Want to grow</span></li>
+            <li><strong>Draft or Checked</strong>: click <span class="check-btn hx">☐ Draft — mark as checked</span> once you've checked the facts. It turns green: <span class="check-btn done hx">✓ Checked</span></li>
+            <li><strong>Colour</strong>: <span class="hx-sel">🎨 Auto (from tags)</span> tints the top of the page. Pick a colour, or <em>No colour</em>.</li>
+          </ul>
+          <p><strong>Tags</strong> are short labels like <em>full-sun</em> or <em>summer-flowering</em>. They help you find plants.</p>
+          <ul>
+            <li>Add one: type in <span class="hx-input">add a tag</span> then click <span class="autotag-btn hx">+ Add tag</span>.</li>
+            <li>Remove one: click the <strong>×</strong> on the tag.</li>
+          </ul>
+        </section>
+
+        <section id="h-links">
+          <h3>8. Links, notes and research buttons</h3>
+          <p><strong>Links</strong> (middle column): click <span class="lk-add hx">+ Add link</span>, paste the web address, then give it a short name.</p>
+          <p><strong>Notes</strong>: the lined paper under the links. Write anything you like.</p>
+          <p><strong>Research buttons</strong> open a new browser tab:</p>
+          <ul>
+            <li><span class="tool-box hx">🔍 Search by pictures</span> shows Google pictures of this plant.</li>
+            <li><span class="tool-box hx">▶ Videos</span> shows YouTube videos about it.</li>
+            <li><span class="tool-box hx">Plants &amp; Seeds ▾</span> and the other lists are your saved shop websites. You can add your own at the bottom of each list.</li>
+            <li><span class="tool-box hx">🔎 Identify with Google Lens</span> lets you paste a photo to find out what it is.</li>
+          </ul>
+        </section>
+
+        <section id="h-import">
+          <h3>9. Import and update many plants</h3>
+          <p class="help-warn">⚠ Make a backup first (section 11).</p>
+          <p><span class="btn hx">Import plants</span> adds lots of new plants at once from a text file or pasted text.</p>
+          <ul>
+            <li>Each plant starts with its Latin name and common name, then the headings (Description, Site &amp; Soil, Watering and so on).</li>
+            <li>Put a line of <code>=====</code> between plants.</li>
+            <li>The app checks for plants you already have <strong>before</strong> adding anything. Read the list carefully.</li>
+          </ul>
+          <p><span class="btn hx">Update existing</span> fills in missing facts for plants you already have. It only fills blank or <em>Not sure</em> facts. It never changes what you've written.</p>
+          <ul>
+            <li>It finds each plant by its <strong>exact</strong> common or Latin name, so keep names spelled the same as in the app.</li>
+            <li>Any plant it can't find is listed as <em>not matched (skipped)</em>. Nothing is changed for those.</li>
+            <li>Text like <em>MISSING — add your own notes</em> counts as written, so it won't be replaced. Type over it yourself.</li>
+          </ul>
+        </section>
+
+        <section id="h-tags">
+          <h3>10. Tidy up your tags</h3>
+          <p>Click <span class="autotag-btn hx">⚙ Manage tags</span> to:</p>
+          <ul>
+            <li><strong>Rename</strong> a tag to fix a spelling.</li>
+            <li><strong>Merge</strong> two tags: rename one to the same name as the other.</li>
+            <li><strong>Delete</strong> a tag from every plant.</li>
+            <li><strong>Give a tag a colour.</strong> Plants with that tag get that colour at the top.</li>
+          </ul>
+          <p class="help-warn">⚠ These changes affect all your plants at once. Back up first.</p>
+        </section>
+
+        <section id="h-backup">
+          <h3>11. Backups (important!)</h3>
+          <p>Your plants and photos are stored <strong>inside this browser, on this device only</strong>. Nothing is kept online. A backup is a copy saved as a file, in case something goes wrong.</p>
+          <p class="help-warn">⚠ Clearing your browser's history/site data, or uninstalling the browser, can erase your plants. Keep regular backups!</p>
+          <p>Click <span class="btn hx">Backup</span> and choose:</p>
+          <ul>
+            <li><span class="modal-confirm hx">Records only</span>: all the words, tags and links. Small and quick.</li>
+            <li><span class="modal-confirm hx">Records + photos</span>: everything. A bigger file that takes a minute or two.</li>
+          </ul>
+          <div class="help-card">
+            <strong>Good backup habits</strong>
+            <ol>
+              <li><strong>Records only</strong> at the end of each day you make changes.</li>
+              <li><strong>Records + photos</strong> once a month, and after adding lots of photos.</li>
+              <li><strong>Always back up before</strong> Import, Update existing, Add photos (if it will replace photos), Manage tags or deleting plants.</li>
+              <li>Keep backups in one folder, for example <em>Plant backups</em>. The date is already in the file name.</li>
+              <li>Once a month, copy the newest backup to a USB stick or cloud drive.</li>
+              <li>Keep the last few backups. Delete very old ones.</li>
+            </ol>
+          </div>
+          <p>The Backup window shows when you last made a backup on this device.</p>
+          <p><strong>To bring plants back from a backup:</strong></p>
+          <ol>
+            <li>Click <span class="btn hx">Backup</span>, then <span class="modal-cancel rs-choose hx" style="font-size:13px;padding:6px 12px;border-radius:3px">📂 Choose backup file…</span></li>
+            <li>Pick your backup file. The app tells you how many plants are in it, and how many are missing from the app.</li>
+            <li>Choose one:
+              <ul>
+                <li><span class="modal-confirm hx">Add back missing plants</span> is safe. It only puts back plants that aren't in the app now.</li>
+                <li><span class="modal-confirm danger hx">Replace everything with this backup</span> is only for when the app has gone badly wrong. You have to click it twice.</li>
+              </ul>
+            </li>
+          </ol>
+          <p class="help-tip">Use a <strong>Records + photos</strong> backup if you can, so any lost photos come back too.</p>
+        </section>
+
+        <section id="h-trouble">
+          <h3>12. Troubleshooting</h3>
+          <dl class="help-faq">
+            <dt>The app stops working or acts strangely</dt>
+            <dd>Try these in order. Stop as soon as it's fixed.
+              <ol>
+                <li><strong>Reload the page</strong> (press <kbd>F5</kbd>). This fixes most small problems. Nothing is lost.</li>
+                <li><strong>Plants wrong or missing?</strong> Use Restore (section 11). Try <em>Add back missing plants</em> first. Use <em>Replace everything</em> only if a lot has gone wrong.</li>
+                <li><strong>Still broken, or won't open?</strong> Ask Claude to fix the app files and upload them to GitHub again. Your plants stay in the browser; if they are lost, use Restore to load your newest backup.</li>
+              </ol>
+            </dd>
+
+            <dt>It says "Could not save — try again"</dt>
+            <dd>Check you're online, then click <span class="btn hx">Save changes</span>. Don't close the app until it says <em>All changes saved</em>.</dd>
+
+            <dt>My changes disappeared</dt>
+            <dd>Each device (and each browser) keeps its <strong>own separate copy</strong>. Changes on your phone don't appear on your laptop. To move everything across, make a <em>Records + photos</em> backup on one device and restore it on the other with <em>Replace everything</em>.</dd>
+
+            <dt>I deleted a plant by mistake</dt>
+            <dd>Click <span class="btn hx">Backup</span>, choose your latest backup file, then click <strong>Add back missing plants</strong>. See section 11.</dd>
+
+            <dt>A plant is missing from Browse</dt>
+            <dd>A filter is probably hiding it. Click <span class="btn hx">All</span> in the Show row, set the drop-down lists back to "Any…" and clear the search box.</dd>
+
+            <dt>I typed on the wrong plant</dt>
+            <dd>Always check the big plant name at the top before typing. Then copy your text into the right plant and fix the wrong one.</dd>
+
+            <dt>Paste doesn't put in my photo</dt>
+            <dd>Copy the picture itself, not the file or the web address. If your browser asks to allow the clipboard, say yes. Or right-click the photo box and choose Paste. Or use <strong>Upload</strong>.</dd>
+
+            <dt>My photo looks a bit soft</dt>
+            <dd>That's normal. The app shrinks photos so it doesn't get slow.</dd>
+
+            <dt>It says "unavailable here"</dt>
+            <dd>This browser is blocking storage, for example a private/incognito window. Open the app normally from its link or the installed app icon.</dd>
+
+            <dt>I can't see the ← Back button</dt>
+            <dd>It only appears after you open a plant from <span class="btn hx">Browse</span> or from the search list. It stays for a few hours, then goes until you open another plant that way.</dd>
+
+            <dt>Add photos skipped some of my photos</dt>
+            <dd>Those are probably HEIC photos from an iPhone, which the browser can't read. Convert them to JPG, or set the phone camera to <em>Most Compatible</em> so it saves JPGs. Then add them again.</dd>
+
+            <dt>Add photos warns "another photo is going to the same spot"</dt>
+            <dd>Two photos are set to the same plant and the same box. Only the last one is kept. Change one to the other box, or to <em>Skip</em>.</dd>
+
+            <dt>I deleted the app from my desktop</dt>
+            <dd>Removing the desktop shortcut is fine. But <strong>uninstalling</strong> the app may also delete its plants, so make a backup first. To reinstall, open the app's link in your browser and click the install icon at the right of the address bar (or the browser menu → <em>Install</em>).</dd>
+
+            <dt>It says "That file is not a Plant Records backup"</dt>
+            <dd>You picked the wrong file. Backup files end in <code>.json</code> and their names start with <code>plant-records-backup</code>.</dd>
+
+            <dt>Import added the same plant twice</dt>
+            <dd>Delete the extra one. Next time, read the duplicate list before you click to confirm.</dd>
+
+            <dt>Several plants have the same name</dt>
+            <dd>That's fine if they're different varieties, like the Japanese anemones. The Latin name tells them apart.</dd>
+
+            <dt>The top of the page is a strange colour</dt>
+            <dd>The colour comes from a tag. Change the 🎨 drop-down to <em>No colour</em> or pick a different one.</dd>
+
+            <dt>Everything is too small or too big</dt>
+            <dd>Hold <kbd>Ctrl</kbd> and press <kbd>+</kbd> or <kbd>−</kbd>. Press <kbd>Ctrl</kbd> + <kbd>0</kbd> to reset.</dd>
+          </dl>
+        </section>
+
+      </div>
+    </div>
+  </div>
+
+
+  <div class="lightbox hidden" id="lightbox">
+    <button class="lb-close" id="lb-close" title="Close">×</button>
+    <button class="lb-nav" id="lb-prev" title="Previous">‹</button>
+    <div class="lb-stage"><img id="lb-img" alt=""><div class="lb-cap" id="lb-cap"></div></div>
+    <button class="lb-nav" id="lb-next" title="Next">›</button>
+  </div>
+
+  <div class="modal-overlay hidden" id="modal-overlay">
+    <div class="modal-box" id="modal-box"></div>
+  </div>
+
+  
+<script id="app-data" type="application/json">{"records":[]}</script>
+<script src="storage.js"></script>
+</body>
+</html>
