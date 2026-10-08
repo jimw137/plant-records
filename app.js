@@ -1047,6 +1047,134 @@
     }
 
     document.getElementById('btn-import').addEventListener('click', showImportModal);
+
+    // ---- add plants by name: copy a ready-made AI prompt, then paste the AI's reply back ----
+    function buildAskPrompt(names) {
+      const list = names.map(n => '- ' + n).join('\n');
+      return 'Please write garden plant records for UK gardening (use RHS-style advice) for these plant' +
+        (names.length === 1 ? '' : 's') + ':\n' + list + '\n\n' +
+        'Put your WHOLE answer inside ONE code block, in plain text with no bold, bullets or # symbols.\n' +
+        'Use exactly this layout for each plant, every heading on its own line:\n\n' +
+        'Latin name\nCommon name or names\nDescription\n...\nSite & Soil\n...\nWatering\n...\nPruning\n...\n' +
+        'Propagation\n...\nFlowering Time\n...\nHardiness\n...\nPests & Diseases\n...\n\n' +
+        'Put a line of ===== between plants. Keep each section to 1 to 3 short sentences. ' +
+        'If you are not sure of a fact, write "Not sure" rather than guessing. ' +
+        'If a name is ambiguous, pick the plant most commonly grown in UK gardens.';
+    }
+
+    // Tidies an AI reply so the normal Import reader understands it: drops ``` fences,
+    // markdown bold/#/bullets on heading lines, and any chatty lines before the first plant.
+    function cleanAiReply(text) {
+      let t = String(text || '').replace(/\r\n?/g, '\n');
+      const fence = t.match(/```[^\n]*\n([\s\S]*?)```/);
+      if (fence) t = fence[1];
+      return t.split('\n').map(line => {
+        const bare = line.replace(/^\s*(#{1,6}\s*|[-*•]\s+)/, '').replace(/\*\*|__/g, '').replace(/:\s*$/, '').trim();
+        return IMPORT_HEADINGS[bare.toLowerCase()] ? bare : line.replace(/\*\*/g, '');
+      }).join('\n').trim();
+    }
+
+    function copyText(text) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(text).then(() => true).catch(() => fallbackCopy());
+      }
+      return Promise.resolve(fallbackCopy());
+      function fallbackCopy() {
+        const ta = document.createElement('textarea');
+        ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select();
+        let ok = false;
+        try { ok = document.execCommand('copy'); } catch (e) {}
+        ta.remove();
+        return ok;
+      }
+    }
+
+    function showAskModal() {
+      syncActiveFromDom();
+      const box = document.getElementById('modal-box');
+      box.style.width = '560px'; box.style.maxWidth = '92vw';
+      box.innerHTML =
+        '<h3>Add plants by name</h3>' +
+        '<p class="ask-step"><b>1</b> Type the plant name. For several plants, put one per line.</p>' +
+        '<textarea id="ask-names" class="ask-names" placeholder="e.g. Salvia \'Hot Lips\'"></textarea>' +
+        '<div class="ask-row">' +
+          '<button class="modal-confirm" id="ask-copy" type="button">📋 Copy prompt</button>' +
+          '<a class="ask-link" href="https://claude.ai/new" target="_blank" rel="noopener">Open Claude ↗</a>' +
+        '</div>' +
+        '<p id="ask-copy-msg" class="ask-msg"></p>' +
+        '<p class="ask-step"><b>2</b> Paste the prompt into Claude. When it answers, tap the code block\'s Copy button.</p>' +
+        '<p class="ask-step"><b>3</b> Paste the answer here, then press Add.</p>' +
+        '<textarea id="ask-reply" placeholder="Paste Claude\'s answer here…"></textarea>' +
+        '<div class="ask-row"><button class="modal-cancel" id="ask-paste" type="button">📋 Paste answer</button></div>' +
+        '<p id="ask-msg" class="ask-msg"></p>' +
+        '<div class="modal-actions">' +
+          '<button class="modal-cancel" id="modal-cancel">Cancel</button>' +
+          '<button class="modal-confirm" id="modal-confirm">Add plants</button>' +
+        '</div>';
+      document.getElementById('modal-overlay').classList.remove('hidden');
+      const namesEl = document.getElementById('ask-names');
+      const replyEl = document.getElementById('ask-reply');
+      const msg = document.getElementById('ask-msg');
+      const copyMsg = document.getElementById('ask-copy-msg');
+      const goBtn = document.getElementById('modal-confirm');
+      let stage = 'add', pending = null;
+      namesEl.focus();
+      document.getElementById('modal-cancel').addEventListener('click', closeModal);
+
+      document.getElementById('ask-copy').addEventListener('click', () => {
+        const names = namesEl.value.split('\n').map(s => s.trim()).filter(Boolean);
+        if (!names.length) { copyMsg.textContent = 'Type a plant name first.'; return; }
+        const have = names.filter(n => state.records.some(r =>
+          [r.commonName, r.botanicalName].some(x => (x || '').trim().toLowerCase() === n.toLowerCase())));
+        copyText(buildAskPrompt(names)).then(ok => {
+          if (!ok) { copyMsg.textContent = 'This browser would not copy. Try again, or use a different browser.'; return; }
+          copyMsg.innerHTML = '✓ Prompt copied. Now open Claude and paste it.' +
+            (have.length ? '<br><span class="ask-warn">Already in the app: ' + esc(have.join(', ')) + '</span>' : '');
+        });
+      });
+
+      document.getElementById('ask-paste').addEventListener('click', async () => {
+        try {
+          const t = await navigator.clipboard.readText();
+          if (t && t.trim()) { replyEl.value = t; msg.textContent = 'Answer pasted. Press Add plants.'; }
+          else msg.textContent = 'The clipboard is empty. Copy Claude\'s answer first.';
+        } catch (e) {
+          replyEl.focus();
+          msg.textContent = 'This browser won\'t let the button paste. Long-press inside the box and choose Paste.';
+        }
+      });
+
+      function doAdd(records, note) {
+        records.forEach(r => { r.checked = false; });
+        const count = importPlants(records);
+        stage = 'done';
+        renderTabs(); renderRecord(); persist();
+        msg.innerHTML = 'Added ' + count + ' plant' + (count === 1 ? '' : 's') + ' as Draft. Please check the facts.' + (note ? '<br>' + note : '');
+        goBtn.textContent = 'Close';
+        const extra = document.getElementById('ask-all'); if (extra) extra.remove();
+      }
+
+      goBtn.addEventListener('click', () => {
+        if (stage === 'done') { closeModal(); return; }
+        if (stage === 'confirm') { doAdd(pending.fresh, pending.dupes.length + ' already in the app, skipped.'); return; }
+        const result = findImportDuplicates(cleanAiReply(replyEl.value));
+        if (!result.parsed.length) { msg.textContent = 'Nothing found. Paste Claude\'s whole answer into the box first.'; return; }
+        pending = result;
+        if (!result.dupes.length) { doAdd(result.fresh, null); return; }
+        msg.innerHTML = '<span class="ask-warn">Already in the app: ' +
+          esc(result.dupes.map(r => r.commonName || r.botanicalName).join(', ')) + '.</span><br>' +
+          'To fill gaps in those, use Import plants → Update existing instead.';
+        if (!result.fresh.length) { stage = 'done'; goBtn.textContent = 'Close'; return; }
+        stage = 'confirm';
+        goBtn.textContent = 'Add ' + result.fresh.length + ' new only';
+        const allBtn = document.createElement('button');
+        allBtn.className = 'modal-cancel'; allBtn.id = 'ask-all'; allBtn.textContent = 'Add all anyway';
+        goBtn.parentNode.insertBefore(allBtn, goBtn);
+        allBtn.addEventListener('click', () => doAdd(pending.fresh.concat(pending.dupes), 'Duplicates included.'));
+      });
+    }
+    document.getElementById('btn-ask').addEventListener('click', showAskModal);
     document.getElementById('btn-backup').addEventListener('click', showBackupModal);
 
     // ---- update existing plants from pasted text: fills blank/"Not sure" fields only ----

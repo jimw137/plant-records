@@ -363,6 +363,15 @@
   .modal-confirm { border: 1px solid var(--green); background: var(--green); color: var(--panel); font-weight: 600; }
   .modal-confirm.danger { border-color: var(--rust); background: var(--rust); }
 
+  .ask-step { color: var(--ink) !important; margin-bottom: 8px !important; }
+  .ask-step b { display: inline-block; width: 22px; height: 22px; line-height: 22px; text-align: center; border-radius: 50%; background: var(--green); color: var(--panel); margin-right: 6px; font-size: 12px; }
+  .modal-box textarea.ask-names { height: 70px; }
+  .ask-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 8px; }
+  .ask-row button { font-family: 'Public Sans', sans-serif; font-size: 14px; padding: 9px 16px; border-radius: 3px; cursor: pointer; }
+  .ask-link { color: var(--green); font-size: 14px; font-weight: 600; }
+  .ask-msg { min-height: 1em; }
+  .ask-warn { color: #b45309; font-weight: 600; }
+
   .identify-btn {
     margin-top: 6px; width: 100%; font-family: 'Public Sans', sans-serif; font-size: 12px;
     padding: 6px 10px; border: 1px solid var(--green-soft); border-radius: 3px;
@@ -477,6 +486,9 @@
   .grow-select.gone { border-color: #7A7A72; color: #5C5C55; font-weight: 600; }
   .grow-select.wish { border-color: #3E7CB1; color: #3E7CB1; font-weight: 600; }
 
+  /* TABLET: let the toolbar buttons wrap instead of running off the screen */
+  @media (max-width: 1100px) { .toolbar { min-width: 0; } }
+
   /* PHONE LAYOUT */
   @media (max-width: 760px) {
     html, body { height: auto; }
@@ -532,7 +544,7 @@
   .help-card > strong { display: block; font-family: 'Fraunces', serif; font-style: italic; font-weight: 500; font-size: 20px; margin-bottom: 8px; color: var(--rust); }
   /* look-alike buttons (pictures, not clickable) */
   .help-body .hx { pointer-events: none; display: inline-block; vertical-align: middle; margin: 1px 0; line-height: 1.3; }
-  .help-body .modal-confirm.hx, .help-body .lk-add.hx { font-size: 13px; padding: 6px 12px; border-radius: 3px; }
+  .help-body .modal-confirm.hx, .help-body .modal-cancel.hx, .help-body .lk-add.hx { font-size: 13px; padding: 6px 12px; border-radius: 3px; }
   .help-body .identify-btn.hx { width: auto; margin-top: 0; }
   .help-body .btn.hx.on { background: var(--green); color: var(--panel); }
   .hx-status { font-size: 13px; color: var(--ink-soft); background: var(--left-panel); border: 1px solid var(--line); padding: 2px 8px; border-radius: 3px; white-space: nowrap; }
@@ -616,6 +628,7 @@
     </div>
     <button class="btn" id="btn-back" title="Go back to your search or Browse results" hidden="">← Back</button>
     <button class="btn primary" id="btn-add">+ New plant</button>
+    <button class="btn" id="btn-ask" title="Type a plant name and let Claude fill in the facts">✨ Add by name</button>
     <button class="btn danger" id="btn-delete">Delete this plant</button>
     <button class="btn" id="btn-browse">Browse</button>
     <button class="btn" id="btn-photos" title="Add lots of your own photos at once">📷 Add photos</button>
@@ -643,7 +656,7 @@
         <a href="#h-edit">3. Change a plant's details</a>
         <a href="#h-photos">4. Add photos</a>
         <a href="#h-browse">5. Browse all your plants</a>
-        <a href="#h-new">6. Add or delete a plant</a>
+        <a href="#h-new">6. Add or delete a plant (and Add by name)</a>
         <a href="#h-labels">7. Tags, category, colour and status</a>
         <a href="#h-links">8. Links, notes and research buttons</a>
         <a href="#h-import">9. Import and update many plants</a>
@@ -744,6 +757,15 @@
         <section id="h-new">
           <h3>6. Add or delete a plant</h3>
           <p><strong>Add:</strong> click <span class="btn primary hx">+ New plant</span>. A blank page called <em>Untitled plant</em> opens. Click the name and type the real one.</p>
+          <p><strong>Add by name (Claude fills in the facts):</strong> click <span class="btn hx">✨ Add by name</span>.</p>
+          <ol>
+            <li>Type the plant name. For several plants, put one name per line.</li>
+            <li>Click <span class="modal-confirm hx">📋 Copy prompt</span>, then <em>Open Claude ↗</em>.</li>
+            <li>In Claude, paste and send. When it answers, tap the <strong>Copy</strong> button on the grey code block.</li>
+            <li>Come back to the app. Click <span class="modal-cancel hx">📋 Paste answer</span> (or long-press the box and choose Paste).</li>
+            <li>Click <span class="modal-confirm hx">Add plants</span>. They're added as <em>Draft</em>.</li>
+          </ol>
+          <p class="help-tip">AI can get facts wrong. Check each new plant, then click <em>☐ Draft — mark as checked</em>. In Browse, choose <em>Drafts only</em> to find them. If a plant is already in the app, it warns you instead of making a copy.</p>
           <p><strong>Delete:</strong> open the plant, then click <span class="btn hx">Delete this plant</span> and confirm.</p>
           <p class="help-warn">⚠ There's no undo button. You can only get a deleted plant back from a backup (section 11). If you might grow it again, set it to <em>Not growing now</em> instead (section 7).</p>
         </section>

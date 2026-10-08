@@ -1,5 +1,5 @@
 // Plant Records service worker: offline use + serving photos stored in this browser.
-const CACHE = 'plant-records-v1';
+const CACHE = 'plant-records-v2';
 const CORE = ['./', 'index.html', 'app.js', 'storage.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
