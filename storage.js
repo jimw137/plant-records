@@ -43,7 +43,8 @@
         publish: async (json) => { await run('kv', 'readwrite', st => st.put(json, 'state')); }
       };
       if (name === 'assets') return {
-        upload: async (blob) => { const id = newId(); await run('photos', 'readwrite', st => st.put(blob, id)); return { id }; }
+        upload: async (blob) => { const id = newId(); await run('photos', 'readwrite', st => st.put(blob, id)); return { id }; },
+        delete: async (id) => { await run('photos', 'readwrite', st => st.delete(id)); }
       };
       if (name === 'downloads') return {
         save: async ({ filename, data }) => {

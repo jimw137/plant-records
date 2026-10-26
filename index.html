@@ -190,6 +190,7 @@
   }
   .photo-act + .photo-act { border-left: 1px solid var(--line-strong); }
   .photo-act:hover { background: var(--green); color: var(--panel); }
+  .photo-act.photo-remove:hover { background: var(--rust); color: var(--panel); }
   .bk-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
   .bk-row button { font-family: 'Public Sans', sans-serif; font-size: 13px; padding: 8px 14px; border-radius: 3px; cursor: pointer; align-self: flex-start; }
   .bk-row button:disabled { opacity: 0.5; cursor: default; }
@@ -662,7 +663,8 @@
         <a href="#h-import">9. Import and update many plants</a>
         <a href="#h-tags">10. Tidy up your tags</a>
         <a href="#h-backup">11. Backups (important!)</a>
-        <a href="#h-trouble">12. Troubleshooting</a>
+        <a href="#h-devices">12. Laptop, tablet and phone</a>
+        <a href="#h-trouble">13. Troubleshooting</a>
       </nav>
       <div class="help-body" id="help-body">
 
@@ -719,6 +721,7 @@
             <li><strong>Drag</strong>: drag a photo file onto the box.</li>
           </ul>
           <p>A new photo replaces the old one in that box. The app shrinks big photos so it stays fast.</p>
+          <p><strong>Delete a photo:</strong> when a box has a photo, a third button appears: <span class="hx-photo"><span class="photo-act">🗑 Remove</span></span>. Click it, then <strong>Delete</strong> to confirm. The photo is deleted for good (this keeps the app small), so make a backup first if you might want it back.</p>
           <p>Click the caption under a photo to change it.</p>
           <p><strong>Lots of your own photos at once:</strong> click <span class="btn hx">📷 Add photos</span> in the toolbar, then <span class="modal-confirm hx">📂 Choose photos…</span> and pick as many as you like (hold <kbd>Ctrl</kbd> to pick several, or <kbd>Ctrl</kbd>+<kbd>A</kbd> for a whole folder).</p>
           <ol>
@@ -863,8 +866,24 @@
           <p class="help-tip">Use a <strong>Records + photos</strong> backup if you can, so any lost photos come back too.</p>
         </section>
 
+        <section id="h-devices">
+          <h3>12. Laptop, tablet and phone</h3>
+          <p><strong>This standalone copy keeps its plants inside each device.</strong> Your laptop, tablet and phone each have their own separate copy, and they don't update each other.</p>
+          <p class="help-tip">Make your changes on one device only, and copy them to the others from there.</p>
+          <p><strong>To copy your plants to another device:</strong></p>
+          <ol>
+            <li>On the device with the latest plants, click <span class="btn hx">Backup</span> then <span class="modal-confirm hx">Records + photos</span>. A file starting <code>plant-records-backup</code> is saved.</li>
+            <li>Get the file onto the other device, using your cloud drive or a USB stick.</li>
+            <li>On that device, open this app and click <span class="btn hx">Backup</span>, then <span class="modal-cancel rs-choose hx" style="font-size:13px;padding:6px 12px;border-radius:3px">📂 Choose backup file…</span></li>
+            <li>Pick the file, then click <span class="modal-confirm danger hx">Replace everything with this backup</span> twice.</li>
+            <li>To check, click <span class="btn hx">Backup</span> again. It shows how many plants you have. The number should match the first device.</li>
+          </ol>
+          <p class="help-warn">⚠ Replace everything wipes any changes made on that device since. Make a backup there first if you're not sure.</p>
+          <p>The same steps copy plants from the Claude version of the app into this one.</p>
+        </section>
+
         <section id="h-trouble">
-          <h3>12. Troubleshooting</h3>
+          <h3>13. Troubleshooting</h3>
           <dl class="help-faq">
             <dt>The app stops working or acts strangely</dt>
             <dd>Try these in order. Stop as soon as it's fixed.

@@ -303,7 +303,7 @@
                 (r.photo1AssetId ? '<img src="_blob/' + esc(r.photo1AssetId) + '" alt="">' : '<div class="plus">+</div>') +
               '</div>' +
               '<input type="file" accept="image/*" class="photo-file-input" data-slot="1" style="display:none">' +
-              '<div class="photo-actions"><button type="button" class="photo-act" data-act="paste" data-slot="1">📋 Paste</button><button type="button" class="photo-act" data-act="upload" data-slot="1">⬆ Upload</button></div>' +
+              '<div class="photo-actions"><button type="button" class="photo-act" data-act="paste" data-slot="1">📋 Paste</button><button type="button" class="photo-act" data-act="upload" data-slot="1">⬆ Upload</button>' + (r.photo1AssetId ? '<button type="button" class="photo-act photo-remove" data-act="remove" data-slot="1">🗑 Remove</button>' : '') + '</div>' +
               '<div class="photo-descriptor" contenteditable="true" data-field="photo1Desc">' + esc(r.photo1Desc) + '</div>' +
               (r.photo1AssetId ? '<button class="identify-btn" data-slot="1">🔍 Identify this plant</button>' : '') +
             '</div>' +
@@ -312,7 +312,7 @@
                 (r.photo2AssetId ? '<img src="_blob/' + esc(r.photo2AssetId) + '" alt="">' : '<div class="plus">+</div>') +
               '</div>' +
               '<input type="file" accept="image/*" class="photo-file-input" data-slot="2" style="display:none">' +
-              '<div class="photo-actions"><button type="button" class="photo-act" data-act="paste" data-slot="2">📋 Paste</button><button type="button" class="photo-act" data-act="upload" data-slot="2">⬆ Upload</button></div>' +
+              '<div class="photo-actions"><button type="button" class="photo-act" data-act="paste" data-slot="2">📋 Paste</button><button type="button" class="photo-act" data-act="upload" data-slot="2">⬆ Upload</button>' + (r.photo2AssetId ? '<button type="button" class="photo-act photo-remove" data-act="remove" data-slot="2">🗑 Remove</button>' : '') + '</div>' +
               '<div class="photo-descriptor" contenteditable="true" data-field="photo2Desc">' + esc(r.photo2Desc) + '</div>' +
               (r.photo2AssetId ? '<button class="identify-btn" data-slot="2">🔍 Identify this plant</button>' : '') +
             '</div>' +
@@ -503,6 +503,10 @@
           if (btn.getAttribute('data-act') === 'upload') {
             const input = app.querySelector('.photo-file-input[data-slot="' + slotNum + '"]');
             if (input) input.click();
+          } else if (btn.getAttribute('data-act') === 'remove') {
+            const rec = getActive();
+            const which = slotNum === '1' ? 'whole plant' : 'close-up';
+            showConfirmModal('Remove the ' + which + ' photo from ' + ((rec && (rec.commonName || rec.botanicalName)) || 'this plant') + '? It will be deleted for good. Only a backup made before now will still have it.', () => removePhoto(slotNum));
           } else {
             pastePhoto(slotNum);
           }
@@ -784,6 +788,28 @@
         if (e.key === 'Enter') submit();
         if (e.key === 'Escape') closeModal();
       });
+    }
+
+    async function removePhoto(slotNum) {
+      const rec = getActive();
+      if (!rec) return;
+      const key = 'photo' + slotNum + 'AssetId';
+      const id = rec[key];
+      if (!id) return;
+      rec[key] = null;
+      renderRecord();
+      renderTabs();
+      persist();
+      // Only delete the stored image if no other plant uses it.
+      const stillUsed = state.records.some(r => r.photo1AssetId === id || r.photo2AssetId === id);
+      if (stillUsed) { setStatus('Photo removed'); return; }
+      try {
+        if (!assetsApi) assetsApi = await claude.use('assets');
+        if (assetsApi && assetsApi.delete) await assetsApi.delete(id);
+        setStatus('Photo removed and deleted');
+      } catch (e) {
+        setStatus('Photo removed (stored copy not deleted)');
+      }
     }
 
     function showConfirmModal(message, onConfirm) {
