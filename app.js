@@ -917,8 +917,10 @@
       'description': 'description', 'site & soil': 'siteSoil', 'site and soil': 'siteSoil',
       'watering': 'watering', 'pruning': 'pruning', 'propagation': 'propagation',
       'flowering time': 'floweringTime', 'hardiness': 'hardiness',
-      'pests & diseases': 'pestsDiseases', 'pests and diseases': 'pestsDiseases'
+      'pests & diseases': 'pestsDiseases', 'pests and diseases': 'pestsDiseases',
+      'category': 'category', 'tags': 'tags'
     };
+    const META_INLINE_RE = /^\s*(category|tags)\s*:\s*(.+)$/i;
 
     // Extracts the 8 body fields from a block's remaining lines. Prefers explicit headings
     // ("Description", "Site & Soil", ...) when present; if a block has none at all (e.g. an
@@ -928,6 +930,12 @@
     function extractFieldsFromLines(lines) {
       const parts = {};
       let current = null, anyHeading = false;
+      const meta = { category: '', tags: '' };
+      lines = lines.filter(line => {
+        const m = line.match(META_INLINE_RE);
+        if (m) { meta[m[1].toLowerCase()] = m[2].trim(); return false; }
+        return true;
+      });
       lines.forEach(line => {
         const key = IMPORT_HEADINGS[line.trim().toLowerCase()];
         if (key) { current = key; parts[key] = []; anyHeading = true; }
@@ -936,12 +944,40 @@
       if (anyHeading) {
         const fields = {};
         FIELD_KEYS.forEach(k => { fields[k] = (parts[k] || []).join('\n').trim(); });
+        fields.category = meta.category || (parts.category || []).join(' ').trim();
+        fields.tags = meta.tags || (parts.tags || []).join(',').trim();
         return fields;
       }
       const contentLines = lines.map(l => l.trim()).filter(Boolean).map(l => l.replace(HEADING_STRIP_RE, ''));
       const fields = {};
       FIELD_KEYS.forEach((k, i) => { fields[k] = (contentLines[i] || '').trim(); });
+      fields.category = meta.category; fields.tags = meta.tags;
       return fields;
+    }
+
+    // Category line: matched to an existing category ("Tender" finds "Tender plants"); a new name becomes a new category.
+    function matchCategory(name) {
+      const n = String(name || '').trim().replace(/\.$/, '');
+      if (!n || /^not sure$/i.test(n)) return '';
+      const list = categoryList();
+      const low = n.toLowerCase();
+      const hit = list.find(c => c.toLowerCase() === low) ||
+                  list.find(c => c.toLowerCase().startsWith(low) || low.startsWith(c.toLowerCase()));
+      if (hit) return hit;
+      state.categories.push(n);
+      return n;
+    }
+    function splitTags(str) {
+      const out = [];
+      String(str || '').split(/[,;\n]+/).forEach(t => {
+        const v = normalizeTag(t.replace(/^[#\s]+|[.\s]+$/g, ''));
+        if (v && !/^not-sure$/.test(v) && !out.includes(v)) out.push(v);
+      });
+      return out;
+    }
+    function todayTag() {
+      const d = new Date();
+      return 'added-' + d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
     }
 
     function parsePlantText(text) {
@@ -967,6 +1003,8 @@
         rec.botanicalName = latin;
         const fields = extractFieldsFromLines(lines);
         FIELD_KEYS.forEach(k => { rec[k] = fields[k]; });
+        rec._category = fields.category;
+        rec.tags = splitTags(fields.tags);
         found.push(rec);
       });
       return found;
@@ -997,8 +1035,12 @@
     function importPlants(records) {
       syncActiveFromDom();
       let firstId = null;
+      const dateTag = todayTag();
       records.forEach((rec, i) => {
         rec.id = 'p_' + Date.now() + '_' + i;
+        if (rec._category) rec.category = matchCategory(rec._category);
+        delete rec._category;
+        rec.tags = (rec.tags || []).filter(t => t !== dateTag).concat(dateTag);
         state.records.push(rec);
         if (!firstId) firstId = rec.id;
       });
@@ -1082,7 +1124,8 @@
         'Put your WHOLE answer inside ONE code block, in plain text with no bold, bullets or # symbols.\n' +
         'Use exactly this layout for each plant, every heading on its own line:\n\n' +
         'Latin name\nCommon name or names\nDescription\n...\nSite & Soil\n...\nWatering\n...\nPruning\n...\n' +
-        'Propagation\n...\nFlowering Time\n...\nHardiness\n...\nPests & Diseases\n...\n\n' +
+        'Propagation\n...\nFlowering Time\n...\nHardiness\n...\nPests & Diseases\n...\nCategory\n...\nTags\n...\n\n' +
+        'For Category pick one of: ' + categoryList().join(', ') + '. For Tags give 2 or 3 short tags separated by commas.\n' +
         'Put a line of ===== between plants. Keep each section to 1 to 3 short sentences. ' +
         'If you are not sure of a fact, write "Not sure" rather than guessing. ' +
         'If a name is ambiguous, pick the plant most commonly grown in UK gardens.';
@@ -1267,6 +1310,9 @@
         FIELD_KEYS.forEach(k => {
           if (isUnsetField(rec[k]) && block.fields[k]) changes[k] = block.fields[k];
         });
+        if (isUnsetField(rec.category) && block.fields.category && !/^not sure\.?$/i.test(block.fields.category)) changes.category = block.fields.category;
+        const newTags = splitTags(block.fields.tags).filter(t => !(rec.tags || []).includes(t));
+        if (newTags.length) changes.tags = (rec.tags || []).concat(newTags);
         matched.push({ rec, changes, changeCount: Object.keys(changes).length });
       });
       return { matched, unmatched };
@@ -1275,7 +1321,7 @@
     function applyUpdates(matched) {
       let filled = 0;
       matched.forEach(({ rec, changes }) => {
-        Object.keys(changes).forEach(k => { rec[k] = changes[k]; filled++; });
+        Object.keys(changes).forEach(k => { rec[k] = k === 'category' ? matchCategory(changes[k]) : changes[k]; filled++; });
       });
       return filled;
     }

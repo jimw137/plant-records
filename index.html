@@ -646,7 +646,7 @@
 
   <div class="help-overlay hidden" id="help-overlay" role="dialog" aria-label="How to use Plant Records">
     <div class="help-bar">
-      <h2>How to use Plant Records</h2>
+      <h2>How to use Plant Records <small style="font-size:0.55em;font-weight:normal;opacity:0.7">Version 2026-11-02 · imports read Category and Tags</small></h2>
       <button class="btn" id="help-close">Close ✕</button>
     </div>
     <div class="help-wrap">
@@ -809,11 +809,14 @@
           <ul>
             <li>Each plant starts with its Latin name and common name, then the headings (Description, Site &amp; Soil, Watering and so on).</li>
             <li>Put a line of <code>=====</code> between plants.</li>
+            <li>Optional: end a plant with a <strong>Category</strong> heading (e.g. <em>Tubers</em>) and a <strong>Tags</strong> heading (e.g. <em>spring, bulbs, pollinators</em>). The app sets them for you, so there's no tagging by hand.</li>
+            <li>Every imported plant also gets a date tag, like <em>added-2026-11-02</em>. Type it in the search box to see that whole batch.</li>
             <li>The app checks for plants you already have <strong>before</strong> adding anything. Read the list carefully.</li>
           </ul>
           <p><span class="btn hx">Update existing</span> fills in missing facts for plants you already have. It only fills blank or <em>Not sure</em> facts. It never changes what you've written.</p>
           <ul>
             <li>It finds each plant by its <strong>exact</strong> common or Latin name, so keep names spelled the same as in the app.</li>
+            <li>Category and Tags lines work here too: tags are added, and the category is only set if the plant hasn't got one.</li>
             <li>Any plant it can't find is listed as <em>not matched (skipped)</em>. Nothing is changed for those.</li>
             <li>Text like <em>MISSING — add your own notes</em> counts as written, so it won't be replaced. Type over it yourself.</li>
           </ul>
