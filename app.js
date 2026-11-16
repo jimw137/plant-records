@@ -272,6 +272,7 @@
             '">▶ Videos</a>' +
             renderBookmarkDropdowns() +
             '<a class="tool-box" href="https://lens.google.com/" target="_blank" rel="noopener" title="On Google Lens\' page, paste (Ctrl+V) or drag in your screenshot">🔎 Identify with Google Lens</a>' +
+            '<a class="tool-box" id="ask-ai-btn" href="#" title="Ask a private AI (Duck AI, Lumo or Maple AI) about this plant">🤖 Ask AI</a>' +
           '</div>' +
           '<div class="chips" id="chips-row">' +
             categorySelectHtml(r) +
@@ -827,9 +828,23 @@
     }
 
     document.getElementById('modal-box').addEventListener('click', (e) => e.stopPropagation());
+    (function modalBackButtons() {
+      const box = document.getElementById('modal-box');
+      const add = () => {
+        if (!box.firstElementChild || box.querySelector(':scope > .modal-back')) return;
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'btn modal-back'; b.textContent = '← Back';
+        b.title = 'Close this window and go back (nothing is changed)';
+        b.addEventListener('click', () => { if (typeof gpBusy !== 'undefined' && gpBusy) return; closeModal(); });
+        box.insertBefore(b, box.firstChild);
+      };
+      new MutationObserver(add).observe(box, { childList: true });
+    })();
     document.getElementById('modal-overlay').addEventListener('click', () => { if (document.getElementById('gp-rows') || gpBusy) return; closeModal(); });
 
+    let lastOpened = null;
     function switchTo(id) {
+      if (id !== lastOpened) { lastOpened = id; opensAdd(id); }
       syncActiveFromDom();
       state.activeId = id;
       renderTabs();
@@ -888,8 +903,67 @@
     // ---- built-in manual ----
     function openHelp() {
       syncActiveFromDom();
-      document.getElementById('help-overlay').classList.remove('hidden');
+      const ov = document.getElementById('help-overlay');
+      ov.classList.add('simple');            // Help always opens on the simple overview
+      ov.classList.remove('hidden');
+      document.getElementById('help-body').scrollTop = 0;
     }
+    function helpShowSimple() {
+      document.getElementById('help-overlay').classList.add('simple');
+      document.getElementById('help-body').scrollTop = 0;
+    }
+    function helpShowFull() { document.getElementById('help-overlay').classList.remove('simple'); }
+    function helpFlash(node) {
+      node.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      node.classList.add('hflash'); setTimeout(() => node.classList.remove('hflash'), 1600);
+    }
+    // "h-browse|in order" -> open the detailed Help at the first line in that section containing the words
+    function helpJump(spec) {
+      helpShowFull();
+      const parts = spec.split('|'), sec = document.getElementById(parts[0]);
+      if (!sec) return false;
+      let node = sec.querySelector('h3');
+      if (parts[1]) {
+        const want = parts[1].toLowerCase();
+        const hit = Array.from(sec.querySelectorAll('li, p, dt')).find(x => x.textContent.toLowerCase().includes(want));
+        if (hit) node = hit;
+      }
+      setTimeout(() => helpFlash(node), 30);
+      return true;
+    }
+    document.getElementById('h-tofull').addEventListener('click', () => { helpShowFull(); document.getElementById('help-body').scrollTop = 0; });
+    document.getElementById('h-backsimple').addEventListener('click', helpShowSimple);
+    document.getElementById('help-body').addEventListener('click', e => {
+      const l = e.target.closest('a[data-hj]');
+      if (l) { e.preventDefault(); helpJump(l.getAttribute('data-hj')); }
+    });
+    // Copy for reading: copies just the words on show (no buttons), for Meta+Alt+C
+    function wordsOf(node) {
+      const c = node.cloneNode(true);
+      c.querySelectorAll('button, .help-map, .hx-static').forEach(x => x.remove());
+      document.body.appendChild(c); c.style.position = 'fixed'; c.style.left = '-9999px';
+      const t = (c.innerText || c.textContent || '').replace(/\n{3,}/g, '\n\n').trim();
+      c.remove(); return t;
+    }
+    function copyForReading(text, what) {
+      const ok = () => setStatus('Copied ' + what + '. Press Meta+Alt+C to hear it.');
+      const fb = () => {
+        try {
+          const t = document.createElement('textarea'); t.value = text; t.style.position = 'fixed'; t.style.opacity = '0';
+          document.body.appendChild(t); t.select(); const r = document.execCommand('copy'); t.remove();
+          r ? ok() : setStatus('Couldn\'t copy. Select the words and press Ctrl+C.');
+        } catch (err) { setStatus('Couldn\'t copy. Select the words and press Ctrl+C.'); }
+      };
+      try { navigator.clipboard.writeText(text).then(ok, fb); } catch (err) { fb(); }
+    }
+    document.getElementById('help-read').addEventListener('click', () => {
+      const ov = document.getElementById('help-overlay');
+      if (ov.classList.contains('simple')) { copyForReading(wordsOf(document.getElementById('h-simple')), 'the simple overview'); return; }
+      const body = document.getElementById('help-body'), top = body.getBoundingClientRect().top;
+      const secs = Array.from(body.querySelectorAll(':scope > section'));
+      const sec = secs.find(s => s.getBoundingClientRect().bottom > top + 60) || secs[0];
+      copyForReading(wordsOf(sec), '“' + sec.querySelector('h3').textContent + '”');
+    });
     function closeHelp() { document.getElementById('help-overlay').classList.add('hidden'); }
     document.getElementById('btn-help').addEventListener('click', openHelp);
     document.getElementById('help-close').addEventListener('click', closeHelp);
@@ -901,7 +975,8 @@
       if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
     document.addEventListener('keydown', e => {
-      if (e.key === 'Escape' && !document.getElementById('help-overlay').classList.contains('hidden')) { e.stopImmediatePropagation(); closeHelp(); }
+      const hov = document.getElementById('help-overlay');
+      if (e.key === 'Escape' && !hov.classList.contains('hidden')) { e.stopImmediatePropagation(); if (hov.classList.contains('simple')) closeHelp(); else helpShowSimple(); }
     }, true);
 
     document.getElementById('btn-save').addEventListener('click', () => {
@@ -1445,7 +1520,21 @@
       return rangeIndexes(seasons, t, 4).sort((a, b) => a - b);
     }
 
-    const bState = { q: '', tag: '', cat: '', season: '', status: '', grow: 'growing', sort: 'common', view: 'cards' };
+    const bState = { q: '', tag: '', cat: '', season: '', status: '', grow: 'growing', sort: 'common', view: 'cards', order: '' };
+    // ---- 'Most opened' counts: kept in this browser only, separate from the plant records and backups ----
+    const OPENS_KEY = 'plant-records-opens';
+    function opensGet() { try { return JSON.parse(localStorage.getItem(OPENS_KEY)) || {}; } catch (err) { return {}; } }
+    function opensAdd(id) { try { const o = opensGet(); o[id] = (o[id] || 0) + 1; localStorage.setItem(OPENS_KEY, JSON.stringify(o)); } catch (err) {} }
+    function addedAt(r) { const m = /^p_(\d{12,})/.exec(String(r.id || '')); return m ? Number(m[1]) : 0; }
+    const TAG_ORDERS = [['new', '📅 Newest'], ['old', '📅 Oldest'], ['az', '🔤 A–Z'], ['opened', '👆 Most opened']];
+    function drawTagOrder() {
+      const row = document.getElementById('b-order');
+      if (!row) return;
+      row.hidden = !bState.tag;
+      if (row.hidden) { row.innerHTML = ''; return; }
+      row.innerHTML = '<span>Plants tagged <b>' + esc(bState.tag) + '</b>, in order of:</span><span class="b-toggle">' +
+        TAG_ORDERS.map(o => '<button class="btn' + (o[0] === bState.order ? ' on' : '') + '" data-order="' + o[0] + '">' + o[1] + '</button>').join('') + '</span>';
+    }
     let bPhotos = [];
     let lbIndex = 0;
 
@@ -1469,8 +1558,17 @@
         }
         return true;
       });
-      const key = bState.sort === 'latin' ? 'botanicalName' : 'commonName';
-      list.sort((a, b) => String(a[key] || a.commonName || '').localeCompare(String(b[key] || b.commonName || ''), 'en', { sensitivity: 'base', ignorePunctuation: true }));
+      const key = (bState.tag && bState.order) ? 'commonName' : (bState.sort === 'latin' ? 'botanicalName' : 'commonName');
+      const byName = (a, b) => String(a[key] || a.commonName || '').localeCompare(String(b[key] || b.commonName || ''), 'en', { sensitivity: 'base', ignorePunctuation: true });
+      list.sort(byName);
+      if (bState.tag && (bState.order === 'new' || bState.order === 'old')) {
+        const pos = new Map(state.records.map((r, i) => [r.id, i]));
+        const when = r => [addedAt(r), pos.get(r.id) || 0];
+        list.sort((a, b) => { const x = when(a), y = when(b); const d = (x[0] - y[0]) || (x[1] - y[1]); return bState.order === 'new' ? -d : d; });
+      } else if (bState.tag && bState.order === 'opened') {
+        const o = opensGet();
+        list.sort((a, b) => ((o[b.id] || 0) - (o[a.id] || 0)) || byName(a, b));
+      }
       return list;
     }
 
@@ -1492,6 +1590,7 @@
     }
 
     function renderBrowseResults() {
+      drawTagOrder();
       const list = browseList();
       document.getElementById('b-count').textContent = list.length + ' of ' + state.records.length + ' plants';
       const gn = { '': state.records.length, growing: 0, gone: 0, wish: 0 };
@@ -1571,9 +1670,9 @@
           '<select id="b-sort"><option value="common"' + (bState.sort === 'common' ? ' selected' : '') + '>Sort by common name</option>' +
             '<option value="latin"' + (bState.sort === 'latin' ? ' selected' : '') + '>Sort by Latin name</option></select>' +
           '<span class="b-toggle"><button class="btn" id="b-cards">Cards</button><button class="btn" id="b-photos">Photos</button></span>' +
-          '<button class="btn" id="b-close">Close</button>' +
+          '<button class="btn primary" id="b-close" title="Back to the plant you were on (Esc)">← Back</button>' +
         '</div>' +
-        '<div class="browse-body"><div class="gs-row">Show: <span class="b-toggle" id="b-grow">' +
+        '<div class="browse-body"><div class="b-order" id="b-order" hidden></div><div class="gs-row">Show: <span class="b-toggle" id="b-grow">' +
           [['', 'All'], ['growing', '🌱 Growing'], ['gone', '○ Not growing now'], ['wish', '☆ Want to grow']].map(o =>
             '<button class="btn" data-grow="' + o[0] + '">' + o[1] + ' <span data-grow-n="' + o[0] + '"></span></button>').join('') +
           '</span></div><div class="browse-count" id="b-count"></div><div id="b-results"></div></div>';
@@ -1593,6 +1692,12 @@
       document.getElementById('b-cards').addEventListener('click', () => setBrowseView('cards'));
       document.getElementById('b-photos').addEventListener('click', () => setBrowseView('photos'));
       document.getElementById('b-close').addEventListener('click', closeBrowse);
+      document.getElementById('b-order').addEventListener('click', e => {
+        const b = e.target.closest('[data-order]');
+        if (!b) return;
+        bState.order = b.getAttribute('data-order');
+        renderBrowseResults();
+      });
       document.getElementById('b-results').addEventListener('click', e => {
         const photo = e.target.closest('[data-photo]');
         if (photo) { showLightbox(Number(photo.getAttribute('data-photo'))); return; }
@@ -2275,3 +2380,95 @@
       artifactApi = await claude.use('artifact');
       setStatus(artifactApi ? 'All changes saved' : 'Saving is not available in this browser');
     })();
+
+
+    // ---- 16 Nov 2026: Text size + bold, and Ask AI ----
+    function lsGetP(k, d) { try { const v = localStorage.getItem('pr-' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }
+    function lsSetP(k, v) { try { localStorage.setItem('pr-' + k, JSON.stringify(v)); } catch (e) {} }
+    function applyText() {
+      document.documentElement.style.setProperty('--ts', lsGetP('ts', 1.2));
+      document.body.classList.toggle('boldtxt', !!lsGetP('bold', true));
+    }
+    applyText();
+    function closePops() { document.querySelectorAll('.pop').forEach(p => p.remove()); }
+    function openPop(html, anchor) {
+      closePops();
+      const p = document.createElement('div'); p.className = 'pop'; p.innerHTML = html;
+      p.addEventListener('click', e => e.stopPropagation());
+      document.body.appendChild(p);
+      const b = anchor.getBoundingClientRect();
+      p.style.top = Math.min(b.bottom + 8, innerHeight - p.offsetHeight - 10) + 'px';
+      p.style.left = Math.max(10, Math.min(b.left, innerWidth - p.offsetWidth - 14)) + 'px';
+      const x = p.querySelector('[data-close]'); if (x) x.onclick = closePops;
+      return p;
+    }
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.querySelector('.pop')) closePops(); });
+    document.addEventListener('click', e => { if (!e.target.closest('.pop') && !e.target.closest('#btn-text') && !e.target.closest('#ask-ai-btn')) closePops(); });
+
+    function textPop() {
+      const ts = lsGetP('ts', 1.2), bold = !!lsGetP('bold', true);
+      const p = openPop('<h3>Text size <button data-close title="Close (Esc)">✕</button></h3>' +
+        '<div class="row">' + [1, 1.1, 1.2, 1.3].map(z => '<button class="btn' + (z === ts ? ' on' : '') + '" data-ts="' + z + '">' + Math.round(z * 100) + '%</button>').join('') + '</div>' +
+        '<div class="row"><button class="btn' + (bold ? ' on' : '') + '" data-bold>' + (bold ? '☑' : '☐') + ' Bold text</button></div>' +
+        '<p>Remembered on this device.</p>', document.getElementById('btn-text'));
+      p.querySelectorAll('[data-ts]').forEach(b => b.onclick = () => { lsSetP('ts', +b.dataset.ts); applyText(); textPop(); });
+      p.querySelector('[data-bold]').onclick = () => { lsSetP('bold', !lsGetP('bold', true)); applyText(); textPop(); };
+    }
+    document.getElementById('btn-text').addEventListener('click', e => { e.stopPropagation(); textPop(); });
+
+    const AI_SITES = [['duck', 'Duck AI', 'https://duck.ai/'], ['lumo', 'Lumo', 'https://lumo.proton.me/'], ['maple', 'Maple AI', 'https://trymaple.ai/']];
+    function plantText(r, q) {
+      const L = ["I'm keeping records of a plant in my garden (UK). Please help me with my question at the end.", '',
+        'PLANT: ' + (r.commonName || 'Unnamed') + (r.botanicalName ? ' (' + r.botanicalName + ')' : '')];
+      if (r.category) L.push('Category: ' + r.category);
+      if ((r.tags || []).length) L.push('Tags: ' + r.tags.join(', '));
+      FIELD_KEYS.forEach(k => { const v = (r[k] || '').trim(); if (v && !/^(MISSING|Not sure\.?$)/i.test(v)) L.push('', FIELD_LABELS[k].replace('&amp;', '&').toUpperCase() + ':', v); });
+      if ((r.notes || '').trim()) L.push('', 'MY NOTES:', r.notes.trim());
+      L.push('', 'MY QUESTION: ' + (q || ''));
+      return L.join('\n');
+    }
+    async function copyPhoto(img) {
+      const blob = await (await fetch(img.src)).blob();
+      let png = blob;
+      if (blob.type !== 'image/png') {
+        const bmp = await createImageBitmap(blob); const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height;
+        c.getContext('2d').drawImage(bmp, 0, 0); png = await new Promise(res => c.toBlob(res, 'image/png'));
+      }
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]);
+    }
+    // copies text; if the browser refuses the normal way, uses the older copy method (16 Nov 2026)
+    async function copyTextSafe(t) {
+      try { await navigator.clipboard.writeText(t); return; } catch (e) {
+        const ta = document.createElement('textarea'); ta.value = t; ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+        document.body.appendChild(ta); ta.select(); let ok = false; try { ok = document.execCommand('copy'); } catch (_) {}
+        ta.remove(); if (!ok) throw e;
+      }
+    }
+    function askAI(anchor) {
+      syncActiveFromDom();
+      const r = getActive(); if (!r) return;
+      const imgs = [1, 2].map(n => document.querySelector('.photo-slot[data-slot="' + n + '"] img'));
+      const p = openPop('<h3>🤖 Ask a private AI <button data-close title="Close (Esc)">✕</button></h3>' +
+        '<p>Your question and this plant\'s details are copied, then the AI opens. Click in its chat box and press <b>Ctrl+V</b>, then Enter.</p>' +
+        '<textarea id="ask-q" placeholder="Your question, e.g. When should I prune this?"></textarea>' +
+        '<div class="row">' + AI_SITES.map((s, i) => '<button class="btn' + (i ? '' : ' primary') + '" data-ai="' + s[0] + '">Ask ' + s[1] + '</button>').join('') + '</div>' +
+        '<hr><div class="row">' + imgs.map((im, i) => '<button class="btn" data-pic="' + i + '"' + (im ? '' : ' disabled') + '>📷 Copy photo ' + (i + 1) + '</button>').join('') + '</div>' +
+        '<p>' + (imgs.some(Boolean) ? 'Paste a photo into the chat box with Ctrl+V too. Duck AI: choose a model that takes pictures.' : 'This plant has no photos to copy yet.') + '</p>', anchor);
+      p.querySelector('#ask-q').focus();
+      p.querySelectorAll('[data-ai]').forEach(b => b.onclick = async () => {
+        const s = AI_SITES.find(x => x[0] === b.dataset.ai);
+        try { await copyTextSafe(plantText(r, p.querySelector('#ask-q').value.trim())); }
+        catch (e) { setStatus("Couldn't copy: " + e.message); return; }
+        window.open(s[2], '_blank', 'noopener');
+        setStatus('Plant copied. In ' + s[1] + ', click the chat box and press Ctrl+V');
+      });
+      p.querySelectorAll('[data-pic]').forEach(b => b.onclick = async () => {
+        const im = imgs[+b.dataset.pic]; if (!im) return;
+        try { await copyPhoto(im); setStatus('Photo copied. Press Ctrl+V in the AI\'s chat box'); b.textContent = '✓ Copied'; }
+        catch (e) { setStatus("Couldn't copy the photo: " + e.message); }
+      });
+    }
+    document.addEventListener('click', e => {
+      const a = e.target.closest('#ask-ai-btn'); if (!a) return;
+      e.preventDefault(); e.stopPropagation(); askAI(a);
+    }, true);
