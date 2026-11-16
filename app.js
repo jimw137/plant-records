@@ -272,7 +272,7 @@
             '">▶ Videos</a>' +
             renderBookmarkDropdowns() +
             '<a class="tool-box" href="https://lens.google.com/" target="_blank" rel="noopener" title="On Google Lens\' page, paste (Ctrl+V) or drag in your screenshot">🔎 Identify with Google Lens</a>' +
-            '<a class="tool-box" id="ask-ai-btn" href="#" title="Ask a private AI (Duck AI, Lumo or Maple AI) about this plant">🤖 Ask AI</a>' +
+            '<a class="tool-box" id="ask-ai-btn" href="#" title="Ask a private AI (Duck AI, Lumo or Venice AI) about this plant">🤖 Ask AI</a>' +
           '</div>' +
           '<div class="chips" id="chips-row">' +
             categorySelectHtml(r) +
@@ -2416,25 +2416,42 @@
     }
     document.getElementById('btn-text').addEventListener('click', e => { e.stopPropagation(); textPop(); });
 
-    const AI_SITES = [['duck', 'Duck AI', 'https://duck.ai/'], ['lumo', 'Lumo', 'https://lumo.proton.me/'], ['maple', 'Maple AI', 'https://trymaple.ai/']];
+    const AI_SITES = [['duck', 'Duck AI', 'https://duck.ai/'], ['lumo', 'Lumo', 'https://lumo.proton.me/'], ['venice', 'Venice AI', 'https://venice.ai/chat']]; // Maple swapped for Venice 16 Nov 2026 (Maple needs a login; Venice has 10 free questions a day)
     function plantText(r, q) {
-      const L = ["I'm keeping records of a plant in my garden (UK). Please help me with my question at the end.", '',
-        'PLANT: ' + (r.commonName || 'Unnamed') + (r.botanicalName ? ' (' + r.botanicalName + ')' : '')];
+      // 16 Nov 2026 (evening): question at the TOP as well as the end, like the Recipe Book; at the end only it got lost
+      const L = q ? ['MY QUESTION: ' + q, '', "It's about a plant in my garden (UK). Here are my records of it:", '']
+                  : ["I'm keeping records of a plant in my garden (UK). I'll ask my question next.", ''];
+      L.push('PLANT: ' + (r.commonName || 'Unnamed') + (r.botanicalName ? ' (' + r.botanicalName + ')' : ''));
       if (r.category) L.push('Category: ' + r.category);
       if ((r.tags || []).length) L.push('Tags: ' + r.tags.join(', '));
       FIELD_KEYS.forEach(k => { const v = (r[k] || '').trim(); if (v && !/^(MISSING|Not sure\.?$)/i.test(v)) L.push('', FIELD_LABELS[k].replace('&amp;', '&').toUpperCase() + ':', v); });
       if ((r.notes || '').trim()) L.push('', 'MY NOTES:', r.notes.trim());
-      L.push('', 'MY QUESTION: ' + (q || ''));
+      if (q) L.push('', '(My question again: ' + q + ')');
       return L.join('\n');
     }
-    async function copyPhoto(img) {
-      const blob = await (await fetch(img.src)).blob();
-      let png = blob;
-      if (blob.type !== 'image/png') {
-        const bmp = await createImageBitmap(blob); const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height;
-        c.getContext('2d').drawImage(bmp, 0, 0); png = await new Promise(res => c.toBlob(res, 'image/png'));
+    // 16 Nov 2026 (evening): photos are got ready as soon as the Ask AI box opens, so copying is instant
+    const PNG_CACHE = {};
+    function pngFor(src) {
+      if (!PNG_CACHE[src]) {
+        PNG_CACHE[src] = (async () => {
+          const blob = await (await fetch(src)).blob();
+          if (blob.type === 'image/png') return blob;
+          const bmp = await createImageBitmap(blob); const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height;
+          c.getContext('2d').drawImage(bmp, 0, 0); return await new Promise(res => c.toBlob(res, 'image/png'));
+        })();
+        PNG_CACHE[src].catch(() => { delete PNG_CACHE[src]; });
       }
-      await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]);
+      return PNG_CACHE[src];
+    }
+    async function copyPhoto(img) {
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': pngFor(img.src) })]);
+    }
+    // saves a photo into Downloads, to drag onto the AI's chat box if pasting doesn't work
+    async function savePhoto(img, r, n) {
+      const blob = await pngFor(img.src);
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+      a.download = ((r.commonName || 'plant').replace(/[^\w -]+/g, '').trim() || 'plant') + ' photo ' + n + '.png';
+      document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 20000);
     }
     // copies text; if the browser refuses the normal way, uses the older copy method (16 Nov 2026)
     async function copyTextSafe(t) {
@@ -2449,23 +2466,31 @@
       const r = getActive(); if (!r) return;
       const imgs = [1, 2].map(n => document.querySelector('.photo-slot[data-slot="' + n + '"] img'));
       const p = openPop('<h3>🤖 Ask a private AI <button data-close title="Close (Esc)">✕</button></h3>' +
-        '<p>Your question and this plant\'s details are copied, then the AI opens. Click in its chat box and press <b>Ctrl+V</b>, then Enter.</p>' +
+        '<p><b>1.</b> Type your question. <b>2.</b> Click an AI: your question (at the top) and the plant\'s details are copied and the AI opens. Click its chat box, press <b>Ctrl+V</b>, then Enter. <b>3.</b> For a photo too: come back, click <b>📷 Copy photo</b>, wait for <b>✓ Photo copied</b>, then Ctrl+V again. Copying a photo replaces the text, so always paste the text first.</p>' +
         '<textarea id="ask-q" placeholder="Your question, e.g. When should I prune this?"></textarea>' +
         '<div class="row">' + AI_SITES.map((s, i) => '<button class="btn' + (i ? '' : ' primary') + '" data-ai="' + s[0] + '">Ask ' + s[1] + '</button>').join('') + '</div>' +
-        '<hr><div class="row">' + imgs.map((im, i) => '<button class="btn" data-pic="' + i + '"' + (im ? '' : ' disabled') + '>📷 Copy photo ' + (i + 1) + '</button>').join('') + '</div>' +
-        '<p>' + (imgs.some(Boolean) ? 'Paste a photo into the chat box with Ctrl+V too. Duck AI: choose a model that takes pictures.' : 'This plant has no photos to copy yet.') + '</p>', anchor);
+        '<hr><div class="row">' + imgs.map((im, i) => '<button class="btn" data-pic="' + i + '"' + (im ? '' : ' disabled') + ' title="Copies photo ' + (i + 1) + ' so you can paste it into the AI with Ctrl+V">📷 Copy photo ' + (i + 1) + '</button>').join('') + '</div>' +
+        '<div class="row">' + imgs.map((im, i) => '<button class="btn" data-save="' + i + '"' + (im ? '' : ' disabled') + ' title="Saves photo ' + (i + 1) + ' into your Downloads folder, so you can drag it onto the AI\'s chat box">💾 Save photo ' + (i + 1) + '</button>').join('') + '</div>' +
+        '<p>' + (imgs.some(Boolean) ? 'If pasting a photo doesn\'t work, click 💾 Save photo: it goes into Downloads; drag it from there onto the AI\'s chat box. Duck AI: choose a model that takes pictures.' : 'This plant has no photos to copy yet.') + '</p>', anchor);
       p.querySelector('#ask-q').focus();
+      imgs.forEach(im => { if (im) pngFor(im.src).catch(() => {}); });
       p.querySelectorAll('[data-ai]').forEach(b => b.onclick = async () => {
         const s = AI_SITES.find(x => x[0] === b.dataset.ai);
         try { await copyTextSafe(plantText(r, p.querySelector('#ask-q').value.trim())); }
         catch (e) { setStatus("Couldn't copy: " + e.message); return; }
         window.open(s[2], '_blank', 'noopener');
-        setStatus('Plant copied. In ' + s[1] + ', click the chat box and press Ctrl+V');
+        setStatus((p.querySelector('#ask-q').value.trim() ? 'Your question and the plant' : 'The plant (no question typed)') + ' copied. In ' + s[1] + ', click the chat box and press Ctrl+V');
       });
       p.querySelectorAll('[data-pic]').forEach(b => b.onclick = async () => {
         const im = imgs[+b.dataset.pic]; if (!im) return;
-        try { await copyPhoto(im); setStatus('Photo copied. Press Ctrl+V in the AI\'s chat box'); b.textContent = '✓ Copied'; }
-        catch (e) { setStatus("Couldn't copy the photo: " + e.message); }
+        setStatus('Copying the photo…');
+        try { await copyPhoto(im); setStatus('✓ Photo copied. Now press Ctrl+V in the AI\'s chat box'); b.textContent = '✓ Photo copied'; }
+        catch (e) { setStatus("Couldn't copy the photo: " + e.message + '. Try 💾 Save photo instead.'); }
+      });
+      p.querySelectorAll('[data-save]').forEach(b => b.onclick = async () => {
+        const n = +b.dataset.save, im = imgs[n]; if (!im) return;
+        try { await savePhoto(im, r, n + 1); setStatus('✓ Photo saved in Downloads: drag it onto the AI\'s chat box'); b.textContent = '✓ Saved'; }
+        catch (e) { setStatus("Couldn't save the photo: " + e.message); }
       });
     }
     document.addEventListener('click', e => {
